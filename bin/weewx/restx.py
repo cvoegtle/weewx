@@ -621,6 +621,40 @@ class StdWunderground(StdRESTful):
         """Puts new archive records in the archive queue"""
         self.archive_queue.put(event.record)
 
+class StdWetterwolke(StdRESTful):
+    """Specialized version of the Ambient protocol for Wetterwolke
+    """
+
+    def __init__(self, engine, config_dict):
+
+        super(StdWetterwolke, self).__init__(engine, config_dict)
+
+        _ambient_dict = get_site_dict(config_dict, 'Wetterwolke', 'server_url', 'station', 'password')
+        if _ambient_dict is None:
+            return
+
+            # Get the manager dictionary:
+        _manager_dict = weewx.manager.get_manager_dict_from_config(config_dict, 'wx_binding')
+
+        self.archive_queue = Queue.Queue()
+        self.archive_thread = AmbientThread(
+            self.archive_queue,
+            _manager_dict,
+            protocol_name="Wetterwolke-2018",
+            **_ambient_dict)
+        self.archive_thread.start()
+        self.bind(weewx.NEW_ARCHIVE_RECORD, self.new_archive_record)
+        syslog.syslog(syslog.LOG_INFO, "restx: Wetterwolke: Data for station %s will be posted" %
+                      _ambient_dict['station'])
+
+    def new_loop_packet(self, event):
+        """ignore LOOP packets"""
+        return
+
+    def new_archive_record(self, event):
+        """Puts new archive records in the archive queue"""
+        self.archive_queue.put(event.record)
+
 
 class CachedValues(object):
     """Dictionary of value-timestamp pairs.  Each timestamp indicates when the

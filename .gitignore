@@ -1,5 +1,7 @@
 *~
-.idea
+!/.idea
+/.idea/*
+!/.idea/codeStyles
 .project
 .pydevproject
 .settings
@@ -15,3 +17,4 @@ weewx.iml
 *.suo
 .DS_Store
 *.config
+weewx.iml

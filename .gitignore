@@ -8,6 +8,7 @@ build
 dist
 MANIFEST
 junk*
+weewx.iml
 *.sln
 *.user
 *.pyproj

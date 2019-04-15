@@ -1045,7 +1045,9 @@ class WetterwolkeThread(AmbientLoopThread):
                 'dayRain'    : 'dailyrain=%.2f',
                 'radiation'  : 'solarradiation=%.2f',
                 'UV'         : 'UV=%.2f',
-                'rtfreq'     : 'rtfreq=%.1f'}
+                'rtfreq'     : 'rtfreq=%.1f',
+                'inTemp'     : 'indoortemp=%.1f',
+                'inHumidity ': 'indoorhumidity=%.0f'}
 
     def format_url(self, incoming_record):
         """Return an URL for posting using the Ambient protocol."""

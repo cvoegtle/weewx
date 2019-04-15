@@ -647,17 +647,18 @@ class StdWunderground(StdRESTful):
 class StdWetterwolke(StdRESTful):
     """Specialized version of the Ambient protocol for the Wetterwolke.
     """
+    base_url = 'https://%s.appspot.com/weatherstation/%s'
     # the rapidfire URL:
-    rf_url = "https://instantwetter.appspot.com/weatherstation/rapid"
+    rf_url = 'rapid'
     # the personal weather station URL:
-    pws_url = "https://instantwetter.appspot.com/weatherstation/upload"
+    pws_url = 'upload'
 
     def __init__(self, engine, config_dict):
 
         super(StdWetterwolke, self).__init__(engine, config_dict)
 
         _ambient_dict = get_site_dict(
-            config_dict, 'Wetterwolke', 'station', 'password')
+            config_dict, 'Wetterwolke', 'station', 'password', 'host')
         if _ambient_dict is None:
             return
 
@@ -676,7 +677,8 @@ class StdWetterwolke(StdRESTful):
                                                     not do_rapidfire_post))
 
         if do_archive_post:
-            _ambient_dict.setdefault('server_url', StdWetterwolke.pws_url)
+            _ambient_dict.setdefault('server_url', StdWetterwolke.base_url %
+                                     (_ambient_dict.pop('host'), StdWetterwolke.pws_url))
             self.archive_queue = Queue.Queue()
             self.archive_thread = AmbientThread(
                 self.archive_queue,
@@ -691,15 +693,16 @@ class StdWetterwolke(StdRESTful):
                           _ambient_dict['station'])
 
         if do_rapidfire_post:
-            _ambient_dict.setdefault('server_url', StdWetterwolke.rf_url)
+            _ambient_dict.setdefault('server_url', StdWetterwolke.base_url %
+                                     (_ambient_dict.pop('host'), StdWetterwolke.rf_url))
             _ambient_dict.setdefault('log_success', False)
             _ambient_dict.setdefault('log_failure', False)
             _ambient_dict.setdefault('max_backlog', 0)
             _ambient_dict.setdefault('max_tries', 1)
-            _ambient_dict.setdefault('rtfreq',  2.5)
+            _ambient_dict.setdefault('rtfreq',  30)
             self.cached_values = CachedValues()
             self.loop_queue = Queue.Queue()
-            self.loop_thread = AmbientLoopThread(
+            self.loop_thread = WetterwolkeThread(
                 self.loop_queue,
                 _manager_dict,
                 protocol_name="Wetterwolke-RF",
@@ -1027,6 +1030,58 @@ class AmbientLoopThread(AmbientThread):
         _record['rtfreq'] = self.rtfreq
 
         return _record
+
+
+class WetterwolkeThread(AmbientLoopThread):
+    # Types and formats of the data to be published:
+    _FORMATS = {'dateTime'   : 'dateutc=%s',
+                'barometer'  : 'baromin=%.3f',
+                'outTemp'    : 'tempf=%.1f',
+                'outHumidity': 'humidity=%03.0f',
+                'windSpeed'  : 'windspeedmph=%03.1f',
+                'windDir'    : 'winddir=%03.0f',
+                'windGust'   : 'windgustmph=%03.1f',
+                'hourRain'   : 'rainin=%.2f',
+                'dayRain'    : 'dailyrainin=%.2f',
+                'radiation'  : 'solarradiation=%.2f',
+                'UV'         : 'UV=%.2f',
+                'rtfreq'     : 'rtfreq=%.1f'}
+
+    def format_url(self, incoming_record):
+        """Return an URL for posting using the Ambient protocol."""
+
+        record = weewx.units.to_METRIC(incoming_record)
+
+        _liststr = ["action=updateraw",
+                    "ID=%s" % self.station,
+                    "PASSWORD=%s" % urllib.quote(self.password),
+                    "softwaretype=%s" % self.softwaretype]
+
+        # Go through each of the supported types, formatting it, then adding
+        # to _liststr:
+        for _key in WetterwolkeThread._FORMATS:
+            _v = record.get(_key)
+            # Check to make sure the type is not null
+            if _v is not None:
+                if _key == 'dateTime':
+                    # For dates, convert from time stamp to a string, using
+                    # what the Weather Underground calls "MySQL format." I've
+                    # fiddled with formatting, and it seems that escaping the
+                    # colons helps its reliability. But, I could be imagining
+                    # things.
+                    _v = urllib.quote(str(datetime.datetime.utcfromtimestamp(_v)))
+                # Format the value, and accumulate in _liststr:
+                _liststr.append(self.formats[_key] % _v)
+        # Now stick all the pieces together with an ampersand between them:
+        _urlquery = '&'.join(_liststr)
+        # This will be the complete URL for the HTTP GET:
+        _url = "%s?%s" % (self.server_url, _urlquery)
+        # show the url in the logs for debug, but mask any password
+        if weewx.debug >= 2:
+            syslog.syslog(syslog.LOG_DEBUG, "restx: Ambient: url: %s" %
+                          re.sub(r"PASSWORD=[^\&]*", "PASSWORD=XXX", _url))
+        return _url
+
 
 
 class WOWThread(AmbientThread):

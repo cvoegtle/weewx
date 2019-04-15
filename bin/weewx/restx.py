@@ -699,7 +699,7 @@ class StdWetterwolke(StdRESTful):
             _ambient_dict.setdefault('log_failure', False)
             _ambient_dict.setdefault('max_backlog', 0)
             _ambient_dict.setdefault('max_tries', 1)
-            _ambient_dict.setdefault('rtfreq',  30)
+            _ambient_dict.setdefault('rtfreq',  2.5)
             self.cached_values = CachedValues()
             self.loop_queue = Queue.Queue()
             self.loop_thread = WetterwolkeThread(
@@ -933,7 +933,7 @@ class AmbientThread(RESTThread):
                 'rtfreq'     : 'rtfreq=%.1f'}
 
     _INDOOR_FORMATS = {
-        'inTemp'    : 'indoortempf=%.1f',
+        'inTemp'    : 'indoortemp=%.1f',
         'inHumidity': 'indoorhumidity=%.0f'}
 
     def format_url(self, incoming_record):
@@ -1035,14 +1035,14 @@ class AmbientLoopThread(AmbientThread):
 class WetterwolkeThread(AmbientLoopThread):
     # Types and formats of the data to be published:
     _FORMATS = {'dateTime'   : 'dateutc=%s',
-                'barometer'  : 'baromin=%.3f',
-                'outTemp'    : 'tempf=%.1f',
+                'barometer'  : 'barometer=%.3f',
+                'outTemp'    : 'temp=%.1f',
                 'outHumidity': 'humidity=%03.0f',
-                'windSpeed'  : 'windspeedmph=%03.1f',
+                'windSpeed'  : 'windspeed=%03.1f',
                 'windDir'    : 'winddir=%03.0f',
-                'windGust'   : 'windgustmph=%03.1f',
-                'hourRain'   : 'rainin=%.2f',
-                'dayRain'    : 'dailyrainin=%.2f',
+                'windGust'   : 'windgust=%03.1f',
+                'hourRain'   : 'rain=%.2f',
+                'dayRain'    : 'dailyrain=%.2f',
                 'radiation'  : 'solarradiation=%.2f',
                 'UV'         : 'UV=%.2f',
                 'rtfreq'     : 'rtfreq=%.1f'}
@@ -1071,7 +1071,7 @@ class WetterwolkeThread(AmbientLoopThread):
                     # things.
                     _v = urllib.quote(str(datetime.datetime.utcfromtimestamp(_v)))
                 # Format the value, and accumulate in _liststr:
-                _liststr.append(self.formats[_key] % _v)
+                _liststr.append(WetterwolkeThread._FORMATS[_key] % _v)
         # Now stick all the pieces together with an ampersand between them:
         _urlquery = '&'.join(_liststr)
         # This will be the complete URL for the HTTP GET:

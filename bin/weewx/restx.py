@@ -67,6 +67,7 @@ In unusual cases, you might also have to implement the following:
    uses sockets. 
 """
 from __future__ import with_statement
+
 import Queue
 import datetime
 import hashlib
@@ -84,11 +85,10 @@ import urllib2
 import weedb
 import weeutil.weeutil
 import weewx.engine
-from weeutil.weeutil import to_int, to_float, to_bool, timestamp_to_string, search_up, \
-    accumulateLeaves, to_sorted_string
-
 import weewx.manager
 import weewx.units
+from weeutil.weeutil import to_int, to_float, to_bool, timestamp_to_string, search_up, \
+    accumulateLeaves, to_sorted_string
 
 
 class FailedPost(IOError):
@@ -411,7 +411,7 @@ class RESTThread(threading.Thread):
 
         # ... then, finally, post it
         self.post_with_retries(_request, data)
-        
+
     def get_request(self, url):
         """Get a request object. This can be overridden to add any special headers."""
         _request = urllib2.Request(url)
@@ -428,7 +428,7 @@ class RESTThread(threading.Thread):
         
         data: The body of the POST. If not given, the request will be done as a GET.
         """
-        
+
         # Retry up to max_tries times:
         for _count in range(self.max_tries):
             try:
@@ -535,7 +535,7 @@ class RESTThread(threading.Thread):
         self.lastpost = time_ts
         return False
 
-    def get_post_body(self, record):      # @UnusedVariable
+    def get_post_body(self, record):  # @UnusedVariable
         """Return any POST payload.
         
         The returned value should be a 2-way tuple. First element is the Python
@@ -556,6 +556,7 @@ class RESTThread(threading.Thread):
         DEPRECATED. Use get_post_body() instead.
         """
         return None
+
 
 # ==============================================================================
 #                    Ambient protocols
@@ -583,7 +584,7 @@ class StdWunderground(StdRESTful):
 
         syslog.syslog(syslog.LOG_DEBUG, "restx: WU essentials: %s" % _essentials_dict)
 
-            # Get the manager dictionary:
+        # Get the manager dictionary:
         _manager_dict = weewx.manager.get_manager_dict_from_config(
             config_dict, 'wx_binding')
 
@@ -614,7 +615,7 @@ class StdWunderground(StdRESTful):
             _ambient_dict.setdefault('log_failure', False)
             _ambient_dict.setdefault('max_backlog', 0)
             _ambient_dict.setdefault('max_tries', 1)
-            _ambient_dict.setdefault('rtfreq',  2.5)
+            _ambient_dict.setdefault('rtfreq', 2.5)
             self.cached_values = CachedValues()
             self.loop_queue = Queue.Queue()
             self.loop_thread = AmbientLoopThread(
@@ -643,6 +644,7 @@ class StdWunderground(StdRESTful):
     def new_archive_record(self, event):
         """Puts new archive records in the archive queue"""
         self.archive_queue.put(event.record)
+
 
 class StdWetterwolke(StdRESTful):
     """Specialized version of the Ambient protocol for the Wetterwolke.
@@ -699,13 +701,12 @@ class StdWetterwolke(StdRESTful):
             _ambient_dict.setdefault('log_failure', False)
             _ambient_dict.setdefault('max_backlog', 0)
             _ambient_dict.setdefault('max_tries', 1)
-            _ambient_dict.setdefault('rtfreq',  2.5)
+            _ambient_dict.setdefault('rtfreq', 2.5)
             self.cached_values = CachedValues()
             self.loop_queue = Queue.Queue()
             self.loop_thread = WetterwolkeThread(
                 self.loop_queue,
                 _manager_dict,
-                protocol_name="Wetterwolke-RF",
                 essentials=_essentials_dict,
                 **_ambient_dict)
             self.loop_thread.start()
@@ -728,6 +729,7 @@ class StdWetterwolke(StdRESTful):
     def new_archive_record(self, event):
         """Puts new archive records in the archive queue"""
         self.archive_queue.put(event.record)
+
 
 class CachedValues(object):
     """Dictionary of value-timestamp pairs.  Each timestamp indicates when the
@@ -901,39 +903,39 @@ class AmbientThread(RESTThread):
             self.formats.update(AmbientThread._INDOOR_FORMATS)
 
     # Types and formats of the data to be published:
-    _FORMATS = {'dateTime'   : 'dateutc=%s',
-                'barometer'  : 'baromin=%.3f',
-                'outTemp'    : 'tempf=%.1f',
+    _FORMATS = {'dateTime': 'dateutc=%s',
+                'barometer': 'baromin=%.3f',
+                'outTemp': 'tempf=%.1f',
                 'outHumidity': 'humidity=%03.0f',
-                'windSpeed'  : 'windspeedmph=%03.1f',
-                'windDir'    : 'winddir=%03.0f',
-                'windGust'   : 'windgustmph=%03.1f',
-                'dewpoint'   : 'dewptf=%.1f',
-                'hourRain'   : 'rainin=%.2f',
-                'dayRain'    : 'dailyrainin=%.2f',
-                'radiation'  : 'solarradiation=%.2f',
-                'UV'         : 'UV=%.2f',
+                'windSpeed': 'windspeedmph=%03.1f',
+                'windDir': 'winddir=%03.0f',
+                'windGust': 'windgustmph=%03.1f',
+                'dewpoint': 'dewptf=%.1f',
+                'hourRain': 'rainin=%.2f',
+                'dayRain': 'dailyrainin=%.2f',
+                'radiation': 'solarradiation=%.2f',
+                'UV': 'UV=%.2f',
                 # The following four formats have been commented out until the WU
                 # fixes the bug that causes them to be displayed as soil moisture.
-#                 'extraTemp1' : "temp2f=%.1f",
-#                 'extraTemp2' : "temp3f=%.1f",
-#                 'extraTemp3' : "temp4f=%.1f",
-#                 'extraTemp4' : "temp5f=%.1f",
-                'soilTemp1'  : "soiltempf=%.1f",
-                'soilTemp2'  : "soiltemp2f=%.1f",
-                'soilTemp3'  : "soiltemp3f=%.1f",
-                'soilTemp4'  : "soiltemp4f=%.1f",
-                'soilMoist1' : "soilmoisture=%03.0f",
-                'soilMoist2' : "soilmoisture2=%03.0f",
-                'soilMoist3' : "soilmoisture3=%03.0f",
-                'soilMoist4' : "soilmoisture4=%03.0f",
-                'leafWet1'   : "leafwetness=%03.0f",
-                'leafWet2'   : "leafwetness2=%03.0f",
-                'realtime'   : 'realtime=%d',
-                'rtfreq'     : 'rtfreq=%.1f'}
+                #                 'extraTemp1' : "temp2f=%.1f",
+                #                 'extraTemp2' : "temp3f=%.1f",
+                #                 'extraTemp3' : "temp4f=%.1f",
+                #                 'extraTemp4' : "temp5f=%.1f",
+                'soilTemp1': "soiltempf=%.1f",
+                'soilTemp2': "soiltemp2f=%.1f",
+                'soilTemp3': "soiltemp3f=%.1f",
+                'soilTemp4': "soiltemp4f=%.1f",
+                'soilMoist1': "soilmoisture=%03.0f",
+                'soilMoist2': "soilmoisture2=%03.0f",
+                'soilMoist3': "soilmoisture3=%03.0f",
+                'soilMoist4': "soilmoisture4=%03.0f",
+                'leafWet1': "leafwetness=%03.0f",
+                'leafWet2': "leafwetness2=%03.0f",
+                'realtime': 'realtime=%d',
+                'rtfreq': 'rtfreq=%.1f'}
 
     _INDOOR_FORMATS = {
-        'inTemp'    : 'indoortemp=%.1f',
+        'inTemp': 'indoortemp=%.1f',
         'inHumidity': 'indoorhumidity=%.0f'}
 
     def format_url(self, incoming_record):
@@ -987,7 +989,7 @@ class AmbientLoopThread(AmbientThread):
                  station, password, server_url,
                  protocol_name="Unknown-Ambient",
                  essentials={},
-                 post_interval=None, max_backlog=sys.maxint, stale=None, 
+                 post_interval=None, max_backlog=sys.maxint, stale=None,
                  log_success=True, log_failure=True,
                  timeout=10, max_tries=3, retry_wait=5, rtfreq=2.5):
         """
@@ -998,27 +1000,27 @@ class AmbientLoopThread(AmbientThread):
           rtfreq: Frequency of update in seconds for RapidFire
         """
         super(AmbientLoopThread, self).__init__(queue,
-                                            station=station,
-                                            password=password,
-                                            server_url=server_url,
-                                            protocol_name=protocol_name,
-                                            essentials=essentials,
-                                            manager_dict=manager_dict,
-                                            post_interval=post_interval,
-                                            max_backlog=max_backlog,
-                                            stale=stale,
-                                            log_success=log_success,
-                                            log_failure=log_failure,
-                                            timeout=timeout,
-                                            max_tries=max_tries,
-                                            retry_wait=retry_wait)
+                                                station=station,
+                                                password=password,
+                                                server_url=server_url,
+                                                protocol_name=protocol_name,
+                                                essentials=essentials,
+                                                manager_dict=manager_dict,
+                                                post_interval=post_interval,
+                                                max_backlog=max_backlog,
+                                                stale=stale,
+                                                log_success=log_success,
+                                                log_failure=log_failure,
+                                                timeout=timeout,
+                                                max_tries=max_tries,
+                                                retry_wait=retry_wait)
 
         self.rtfreq = float(rtfreq)
         self.formats.update(AmbientLoopThread.WUONLY_FORMATS)
 
     # may also be used by non-rapidfire; this is the least invasive way to just fix rapidfire, which i know supports windGustDir, while the Ambient class is used elsewhere
     WUONLY_FORMATS = {
-        'windGustDir'   : 'windgustdir=%03.0f'}
+        'windGustDir': 'windgustdir=%03.0f'}
 
     def get_record(self, record, dbmanager):
         """Prepare a record for the Rapidfire protocol."""
@@ -1033,21 +1035,38 @@ class AmbientLoopThread(AmbientThread):
 
 
 class WetterwolkeThread(AmbientLoopThread):
+    def __init__(self, queue, manager_dict,
+                 station, password, server_url,
+                 essentials={},
+                 post_interval=None, post_indoor_observations=True, max_backlog=sys.maxint, stale=None,
+                 log_success=True, log_failure=True,
+                 timeout=10, max_tries=3, retry_wait=5, rtfreq=2.5):
+        super(WetterwolkeThread, self).__init__(queue, manager_dict, station, password, server_url,
+                                                protocol_name="Wetterwolke-RF", essentials=essentials,
+                                                post_interval=post_interval, max_backlog=max_backlog, stale=stale,
+                                                log_success=log_success, log_failure=log_failure, timeout=timeout,
+                                                max_tries=max_tries, retry_wait=retry_wait, rtfreq=rtfreq)
+
+        self.formats = dict(WetterwolkeThread._FORMATS)
+        if to_bool(post_indoor_observations):
+            self.formats.update(WetterwolkeThread._INDOOR_FORMATS)
+
     # Types and formats of the data to be published:
-    _FORMATS = {'dateTime'   : 'dateutc=%s',
-                'barometer'  : 'barometer=%.3f',
-                'outTemp'    : 'temp=%.1f',
+    _FORMATS = {'dateTime': 'dateutc=%s',
+                'barometer': 'barometer=%.3f',
+                'outTemp': 'temp=%.1f',
                 'outHumidity': 'humidity=%03.0f',
-                'windSpeed'  : 'windspeed=%03.1f',
-                'windDir'    : 'winddir=%03.0f',
-                'windGust'   : 'windgust=%03.1f',
-                'hourRain'   : 'rain=%.2f',
-                'dayRain'    : 'dailyrain=%.2f',
-                'radiation'  : 'solarradiation=%.2f',
-                'UV'         : 'UV=%.2f',
-                'rtfreq'     : 'rtfreq=%.1f',
-                'inTemp'     : 'indoortemp=%.1f',
-                'inHumidity ': 'indoorhumidity=%.0f'}
+                'windSpeed': 'windspeed=%03.1f',
+                'windDir': 'winddir=%03.0f',
+                'windGust': 'windgust=%03.1f',
+                'hourRain': 'rain=%.2f',
+                'dayRain': 'dailyrain=%.2f',
+                'radiation': 'solarradiation=%.2f',
+                'UV': 'UV=%.2f',
+                'rtfreq': 'rtfreq=%.1f'}
+
+    _INDOOR_FORMATS = {'inTemp': 'indoortemp=%.1f',
+                       'inHumidity ': 'indoorhumidity=%.0f'}
 
     def format_url(self, incoming_record):
         """Return an URL for posting using the Ambient protocol."""
@@ -1061,7 +1080,7 @@ class WetterwolkeThread(AmbientLoopThread):
 
         # Go through each of the supported types, formatting it, then adding
         # to _liststr:
-        for _key in WetterwolkeThread._FORMATS:
+        for _key in self.formats:
             _v = record.get(_key)
             # Check to make sure the type is not null
             if _v is not None:
@@ -1073,7 +1092,7 @@ class WetterwolkeThread(AmbientLoopThread):
                     # things.
                     _v = urllib.quote(str(datetime.datetime.utcfromtimestamp(_v)))
                 # Format the value, and accumulate in _liststr:
-                _liststr.append(WetterwolkeThread._FORMATS[_key] % _v)
+                _liststr.append(self.formats[_key] % _v)
         # Now stick all the pieces together with an ampersand between them:
         _urlquery = '&'.join(_liststr)
         # This will be the complete URL for the HTTP GET:
@@ -1085,22 +1104,21 @@ class WetterwolkeThread(AmbientLoopThread):
         return _url
 
 
-
 class WOWThread(AmbientThread):
     """Class for posting to the WOW variant of the Ambient protocol."""
 
     # Types and formats of the data to be published:
-    _FORMATS = {'dateTime'   : 'dateutc=%s',
-                'barometer'  : 'baromin=%.3f',
-                'outTemp'    : 'tempf=%.1f',
+    _FORMATS = {'dateTime': 'dateutc=%s',
+                'barometer': 'baromin=%.3f',
+                'outTemp': 'tempf=%.1f',
                 'outHumidity': 'humidity=%.0f',
-                'windSpeed'  : 'windspeedmph=%.0f',
-                'windDir'    : 'winddir=%.0f',
-                'windGust'   : 'windgustmph=%.0f',
+                'windSpeed': 'windspeedmph=%.0f',
+                'windDir': 'winddir=%.0f',
+                'windGust': 'windgustmph=%.0f',
                 'windGustDir': 'windgustdir=%.0f',
-                'dewpoint'   : 'dewptf=%.1f',
-                'hourRain'   : 'rainin=%.2f',
-                'dayRain'    : 'dailyrainin=%.2f'}
+                'dewpoint': 'dewptf=%.1f',
+                'hourRain': 'rainin=%.2f',
+                'dayRain': 'dailyrainin=%.2f'}
 
     def format_url(self, incoming_record):
         """Return an URL for posting using WOW's version of the Ambient
@@ -1589,15 +1607,15 @@ class StationRegistryThread(RESTThread):
         _record['usUnits'] = weewx.US
         return _record
 
-    _FORMATS = {'station_url'  : 'station_url=%s',
-                'description'  : 'description=%s',
-                'latitude'     : 'latitude=%.4f',
-                'longitude'    : 'longitude=%.4f',
-                'station_type' : 'station_type=%s',
+    _FORMATS = {'station_url': 'station_url=%s',
+                'description': 'description=%s',
+                'latitude': 'latitude=%.4f',
+                'longitude': 'longitude=%.4f',
+                'station_type': 'station_type=%s',
                 'station_model': 'station_model=%s',
-                'python_info'  : 'python_info=%s',
+                'python_info': 'python_info=%s',
                 'platform_info': 'platform_info=%s',
-                'weewx_info'   : 'weewx_info=%s'}
+                'weewx_info': 'weewx_info=%s'}
 
     def format_url(self, record):
         """Return an URL for posting using the StationRegistry protocol."""
@@ -1736,18 +1754,18 @@ AWEKAS = StdAWEKAS
 
 class AWEKASThread(RESTThread):
     _SERVER_URL = 'http://data.awekas.at/eingabe_pruefung.php'
-    _FORMATS = {'barometer'  : '%.3f',
-                'outTemp'    : '%.1f',
+    _FORMATS = {'barometer': '%.3f',
+                'outTemp': '%.1f',
                 'outHumidity': '%.0f',
-                'windSpeed'  : '%.1f',
-                'windDir'    : '%.0f',
-                'windGust'   : '%.1f',
-                'dewpoint'   : '%.1f',
-                'hourRain'   : '%.2f',
-                'dayRain'    : '%.2f',
-                'radiation'  : '%.2f',
-                'UV'         : '%.2f',
-                'rainRate'   : '%.2f'}
+                'windSpeed': '%.1f',
+                'windDir': '%.0f',
+                'windGust': '%.1f',
+                'dewpoint': '%.1f',
+                'hourRain': '%.2f',
+                'dayRain': '%.2f',
+                'radiation': '%.2f',
+                'UV': '%.2f',
+                'rainRate': '%.2f'}
 
     def __init__(self, queue, username, password, latitude, longitude,
                  manager_dict,

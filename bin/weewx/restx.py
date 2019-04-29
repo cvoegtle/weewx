@@ -1070,7 +1070,7 @@ class WetterwolkeThread(AmbientThread):
                 'UV': 'UV=%.2f'}
 
     _INDOOR_FORMATS = {'inTemp': 'indoortemp=%.1f',
-                       'inHumidity ': 'indoorhumidity=%.0f'}
+                       'inHumidity': 'indoorhumidity=%03.0f'}
 
     def format_url(self, incoming_record):
         """Return an URL for posting using the Ambient protocol."""
@@ -1138,7 +1138,7 @@ class WetterwolkeLoopThread(AmbientLoopThread):
                 'UV': 'UV=%.2f'}
 
     _INDOOR_FORMATS = {'inTemp': 'indoortemp=%.1f',
-                       'inHumidity ': 'indoorhumidity=%.0f'}
+                       'inHumidity': 'indoorhumidity=%03.0f'}
 
     def format_url(self, incoming_record):
         """Return an URL for posting using the Ambient protocol."""

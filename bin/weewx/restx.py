@@ -653,7 +653,7 @@ class StdWetterwolke(StdRESTful):
     # the rapidfire URL:
     rf_url = 'rapid'
     # the personal weather station URL:
-    pws_url = 'upload'
+    pws_url = 'interval'
 
     def __init__(self, engine, config_dict):
 

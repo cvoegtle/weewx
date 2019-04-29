@@ -682,10 +682,9 @@ class StdWetterwolke(StdRESTful):
             _ambient_dict.setdefault('server_url', StdWetterwolke.base_url %
                                      (_ambient_dict.pop('host'), StdWetterwolke.pws_url))
             self.archive_queue = Queue.Queue()
-            self.archive_thread = AmbientThread(
+            self.archive_thread = WetterwolkeThread(
                 self.archive_queue,
                 _manager_dict,
-                protocol_name="Wetterwolke-PWS",
                 essentials=_essentials_dict,
                 **_ambient_dict)
             self.archive_thread.start()
@@ -704,7 +703,7 @@ class StdWetterwolke(StdRESTful):
             _ambient_dict.setdefault('rtfreq', 2.5)
             self.cached_values = CachedValues()
             self.loop_queue = Queue.Queue()
-            self.loop_thread = WetterwolkeThread(
+            self.loop_thread = WetterwolkeLoopThread(
                 self.loop_queue,
                 _manager_dict,
                 essentials=_essentials_dict,
@@ -1033,23 +1032,29 @@ class AmbientLoopThread(AmbientThread):
 
         return _record
 
-
-class WetterwolkeThread(AmbientLoopThread):
-    def __init__(self, queue, manager_dict,
-                 station, password, server_url,
-                 essentials={},
-                 post_interval=None, post_indoor_observations=True, max_backlog=sys.maxint, stale=None,
+class WetterwolkeThread(AmbientThread):
+    def __init__(self, queue, manager_dict, station, password, server_url, essentials,
+                 post_interval=None,  post_indoor_observations=True, max_backlog=sys.maxint, stale=None,
                  log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5, rtfreq=2.5):
-        super(WetterwolkeThread, self).__init__(queue, manager_dict, station, password, server_url,
-                                                protocol_name="Wetterwolke-RF", essentials=essentials,
-                                                post_interval=post_interval, max_backlog=max_backlog, stale=stale,
-                                                log_success=log_success, log_failure=log_failure, timeout=timeout,
-                                                max_tries=max_tries, retry_wait=retry_wait, rtfreq=rtfreq)
-
+                 timeout=10, max_tries=3, retry_wait=5 ):
+        super(WetterwolkeThread, self).__init__(queue,
+                                                station=station,
+                                                password=password,
+                                                server_url=server_url,
+                                                protocol_name="Wetterwolke-PWS",
+                                                essentials=essentials,
+                                                manager_dict=manager_dict,
+                                                post_interval=post_interval,
+                                                max_backlog=max_backlog,
+                                                stale=stale,
+                                                log_success=log_success,
+                                                log_failure=log_failure,
+                                                timeout=timeout,
+                                                max_tries=max_tries,
+                                                retry_wait=retry_wait)
         self.formats = dict(WetterwolkeThread._FORMATS)
         if to_bool(post_indoor_observations):
-            self.formats.update(WetterwolkeThread._INDOOR_FORMATS)
+            self.formats.update(WetterwolkeLoopThread._INDOOR_FORMATS)
 
     # Types and formats of the data to be published:
     _FORMATS = {'dateTime': 'dateutc=%s',
@@ -1062,8 +1067,75 @@ class WetterwolkeThread(AmbientLoopThread):
                 'hourRain': 'rain=%.2f',
                 'dayRain': 'dailyrain=%.2f',
                 'radiation': 'solarradiation=%.2f',
-                'UV': 'UV=%.2f',
-                'rtfreq': 'rtfreq=%.1f'}
+                'UV': 'UV=%.2f'}
+
+    _INDOOR_FORMATS = {'inTemp': 'indoortemp=%.1f',
+                       'inHumidity ': 'indoorhumidity=%.0f'}
+
+    def format_url(self, incoming_record):
+        """Return an URL for posting using the Ambient protocol."""
+
+        record = weewx.units.to_METRIC(incoming_record)
+
+        _liststr = ["action=updateraw",
+                    "ID=%s" % self.station,
+                    "PASSWORD=%s" % urllib.quote(self.password),
+                    "softwaretype=%s" % self.softwaretype]
+
+        # Go through each of the supported types, formatting it, then adding
+        # to _liststr:
+        for _key in self.formats:
+            _v = record.get(_key)
+            # Check to make sure the type is not null
+            if _v is not None:
+                if _key == 'dateTime':
+                    # For dates, convert from time stamp to a string, using
+                    # what the Weather Underground calls "MySQL format." I've
+                    # fiddled with formatting, and it seems that escaping the
+                    # colons helps its reliability. But, I could be imagining
+                    # things.
+                    _v = urllib.quote(str(datetime.datetime.utcfromtimestamp(_v)))
+                # Format the value, and accumulate in _liststr:
+                _liststr.append(self.formats[_key] % _v)
+        # Now stick all the pieces together with an ampersand between them:
+        _urlquery = '&'.join(_liststr)
+        # This will be the complete URL for the HTTP GET:
+        _url = "%s?%s" % (self.server_url, _urlquery)
+        # show the url in the logs for debug, but mask any password
+        if weewx.debug >= 2:
+            syslog.syslog(syslog.LOG_DEBUG, "restx: Ambient: url: %s" %
+                          re.sub(r"PASSWORD=[^\&]*", "PASSWORD=XXX", _url))
+        return _url
+
+class WetterwolkeLoopThread(AmbientLoopThread):
+    def __init__(self, queue, manager_dict,
+                 station, password, server_url,
+                 essentials={},
+                 post_interval=None, post_indoor_observations=True, max_backlog=sys.maxint, stale=None,
+                 log_success=True, log_failure=True,
+                 timeout=10, max_tries=3, retry_wait=5, rtfreq=2.5):
+        super(WetterwolkeLoopThread, self).__init__(queue, manager_dict, station, password, server_url,
+                                                    protocol_name="Wetterwolke-RF", essentials=essentials,
+                                                    post_interval=post_interval, max_backlog=max_backlog, stale=stale,
+                                                    log_success=log_success, log_failure=log_failure, timeout=timeout,
+                                                    max_tries=max_tries, retry_wait=retry_wait, rtfreq=rtfreq)
+
+        self.formats = dict(WetterwolkeLoopThread._FORMATS)
+        if to_bool(post_indoor_observations):
+            self.formats.update(WetterwolkeLoopThread._INDOOR_FORMATS)
+
+    # Types and formats of the data to be published:
+    _FORMATS = {'dateTime': 'dateutc=%s',
+                'barometer': 'barometer=%.3f',
+                'outTemp': 'temp=%.1f',
+                'outHumidity': 'humidity=%03.0f',
+                'windSpeed': 'windspeed=%03.1f',
+                'windDir': 'winddir=%03.0f',
+                'windGust': 'windgust=%03.1f',
+                'hourRain': 'rain=%.2f',
+                'dayRain': 'dailyrain=%.2f',
+                'radiation': 'solarradiation=%.2f',
+                'UV': 'UV=%.2f'}
 
     _INDOOR_FORMATS = {'inTemp': 'indoortemp=%.1f',
                        'inHumidity ': 'indoorhumidity=%.0f'}

@@ -654,10 +654,10 @@ class StdWunderground(StdRESTful):
     def new_loop_packet(self, event):
         """Puts new LOOP packets in the loop queue"""
         if weewx.debug >= 3:
-            syslog.syslog(syslog.LOG_DEBUG, "restx: raw packet: %s" % to_sorted_string(event.packet))
+            log.debug("restx: raw packet: %s" % to_sorted_string(event.packet))
         self.cached_values.update(event.packet, event.packet['dateTime'])
         if weewx.debug >= 3:
-            syslog.syslog(syslog.LOG_DEBUG, "restx: cached packet: %s" %
+            log.debug("restx: cached packet: %s" %
                           to_sorted_string(self.cached_values.get_packet(event.packet['dateTime'])))
         self.loop_queue.put(
             self.cached_values.get_packet(event.packet['dateTime']))
@@ -687,7 +687,7 @@ class StdWetterwolke(StdRESTful):
 
         _essentials_dict = search_up(config_dict['StdRESTful']['Wetterwolke'], 'Essentials', {})
 
-        syslog.syslog(syslog.LOG_DEBUG, "restx: WW essentials: %s" % _essentials_dict)
+        log.debug("restx: WW essentials: %s" % _essentials_dict)
 
         # Get the manager dictionary:
         _manager_dict = weewx.manager.get_manager_dict_from_config(
@@ -702,7 +702,7 @@ class StdWetterwolke(StdRESTful):
         if do_archive_post:
             _ambient_dict.setdefault('server_url', StdWetterwolke.base_url %
                                      (_ambient_dict.pop('host'), StdWetterwolke.pws_url))
-            self.archive_queue = Queue.Queue()
+            self.archive_queue = queue.Queue()
             self.archive_thread = WetterwolkeThread(
                 self.archive_queue,
                 _manager_dict,
@@ -710,7 +710,7 @@ class StdWetterwolke(StdRESTful):
                 **_ambient_dict)
             self.archive_thread.start()
             self.bind(weewx.NEW_ARCHIVE_RECORD, self.new_archive_record)
-            syslog.syslog(syslog.LOG_INFO, "restx: Wetterwolke-PWS: "
+            log.info("restx: Wetterwolke-PWS: "
                                            "Data for station %s will be posted" %
                           _ambient_dict['station'])
 
@@ -723,7 +723,7 @@ class StdWetterwolke(StdRESTful):
             _ambient_dict.setdefault('max_tries', 1)
             _ambient_dict.setdefault('rtfreq', 2.5)
             self.cached_values = CachedValues()
-            self.loop_queue = Queue.Queue()
+            self.loop_queue = queue.Queue()
             self.loop_thread = WetterwolkeLoopThread(
                 self.loop_queue,
                 _manager_dict,
@@ -731,7 +731,7 @@ class StdWetterwolke(StdRESTful):
                 **_ambient_dict)
             self.loop_thread.start()
             self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
-            syslog.syslog(syslog.LOG_INFO, "restx: Wetterwolke-RF: "
+            log.info("restx: Wetterwolke-RF: "
                                            "Data for station %s will be posted" %
                           _ambient_dict['station'])
 
@@ -1074,7 +1074,7 @@ class AmbientLoopThread(AmbientThread):
 
 class WetterwolkeThread(AmbientThread):
     def __init__(self, queue, manager_dict, station, password, server_url, essentials,
-                 post_interval=None,  post_indoor_observations=True, max_backlog=sys.maxint, stale=None,
+                 post_interval=None,  post_indoor_observations=True, stale=None,
                  log_success=True, log_failure=True,
                  timeout=10, max_tries=3, retry_wait=5 ):
         super(WetterwolkeThread, self).__init__(queue,
@@ -1085,7 +1085,6 @@ class WetterwolkeThread(AmbientThread):
                                                 essentials=essentials,
                                                 manager_dict=manager_dict,
                                                 post_interval=post_interval,
-                                                max_backlog=max_backlog,
                                                 stale=stale,
                                                 log_success=log_success,
                                                 log_failure=log_failure,
@@ -1119,7 +1118,7 @@ class WetterwolkeThread(AmbientThread):
 
         _liststr = ["action=updateraw",
                     "ID=%s" % self.station,
-                    "PASSWORD=%s" % urllib.quote(self.password),
+                    "PASSWORD=%s" % urllib.parse.quote(self.password),
                     "softwaretype=%s" % self.softwaretype]
 
         # Go through each of the supported types, formatting it, then adding
@@ -1134,7 +1133,7 @@ class WetterwolkeThread(AmbientThread):
                     # fiddled with formatting, and it seems that escaping the
                     # colons helps its reliability. But, I could be imagining
                     # things.
-                    _v = urllib.quote(str(datetime.datetime.utcfromtimestamp(_v)))
+                    _v = urllib.parse.quote(str(datetime.datetime.utcfromtimestamp(_v)))
                 # Format the value, and accumulate in _liststr:
                 _liststr.append(self.formats[_key] % _v)
         # Now stick all the pieces together with an ampersand between them:
@@ -1143,7 +1142,7 @@ class WetterwolkeThread(AmbientThread):
         _url = "%s?%s" % (self.server_url, _urlquery)
         # show the url in the logs for debug, but mask any password
         if weewx.debug >= 2:
-            syslog.syslog(syslog.LOG_DEBUG, "restx: Ambient: url: %s" %
+            log.debug("restx: Ambient: url: %s" %
                           re.sub(r"PASSWORD=[^\&]*", "PASSWORD=XXX", _url))
         return _url
 
@@ -1151,12 +1150,12 @@ class WetterwolkeLoopThread(AmbientLoopThread):
     def __init__(self, queue, manager_dict,
                  station, password, server_url,
                  essentials={},
-                 post_interval=None, post_indoor_observations=True, max_backlog=sys.maxint, stale=None,
+                 post_interval=None, post_indoor_observations=True, stale=None,
                  log_success=True, log_failure=True,
                  timeout=10, max_tries=3, retry_wait=5, rtfreq=2.5):
         super(WetterwolkeLoopThread, self).__init__(queue, manager_dict, station, password, server_url,
                                                     protocol_name="Wetterwolke-RF", essentials=essentials,
-                                                    post_interval=post_interval, max_backlog=max_backlog, stale=stale,
+                                                    post_interval=post_interval, stale=stale,
                                                     log_success=log_success, log_failure=log_failure, timeout=timeout,
                                                     max_tries=max_tries, retry_wait=retry_wait, rtfreq=rtfreq)
 
@@ -1187,7 +1186,7 @@ class WetterwolkeLoopThread(AmbientLoopThread):
 
         _liststr = ["action=updateraw",
                     "ID=%s" % self.station,
-                    "PASSWORD=%s" % urllib.quote(self.password),
+                    "PASSWORD=%s" % urllib.parse.quote(self.password),
                     "softwaretype=%s" % self.softwaretype]
 
         # Go through each of the supported types, formatting it, then adding
@@ -1202,7 +1201,7 @@ class WetterwolkeLoopThread(AmbientLoopThread):
                     # fiddled with formatting, and it seems that escaping the
                     # colons helps its reliability. But, I could be imagining
                     # things.
-                    _v = urllib.quote(str(datetime.datetime.utcfromtimestamp(_v)))
+                    _v = urllib.parse.quote(str(datetime.datetime.utcfromtimestamp(_v)))
                 # Format the value, and accumulate in _liststr:
                 _liststr.append(self.formats[_key] % _v)
         # Now stick all the pieces together with an ampersand between them:
@@ -1211,7 +1210,7 @@ class WetterwolkeLoopThread(AmbientLoopThread):
         _url = "%s?%s" % (self.server_url, _urlquery)
         # show the url in the logs for debug, but mask any password
         if weewx.debug >= 2:
-            syslog.syslog(syslog.LOG_DEBUG, "restx: Ambient: url: %s" %
+            log.debug("restx: Ambient: url: %s" %
                           re.sub(r"PASSWORD=[^\&]*", "PASSWORD=XXX", _url))
         return _url
 

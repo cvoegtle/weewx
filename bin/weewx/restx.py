@@ -1,5 +1,5 @@
 #
-#    Copyright (c) 2009-2019 Tom Keffer <tkeffer@gmail.com>
+#    Copyright (c) 2009-2020 Tom Keffer <tkeffer@gmail.com>
 #
 #    See the file LICENSE.txt for your full rights.
 #
@@ -129,10 +129,6 @@ class SendError(IOError):
     """Raised when unable to send through a socket."""
 
 
-class CertificateError(Exception):
-    """Raised when there's a problem with an SSL certificate"""
-
-
 # ==============================================================================
 #                    Abstract base classes
 # ==============================================================================
@@ -177,7 +173,7 @@ class RESTThread(threading.Thread):
                  manager_dict=None,
                  post_interval=None, max_backlog=six.MAXSIZE, stale=None,
                  log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5, retry_login=3600, retry_certificate=3600,
+                 timeout=10, max_tries=3, retry_wait=5, retry_login=3600, retry_ssl=3600,
                  softwaretype="weewx-%s" % weewx.__version__,
                  skip_upload=False):
         """Initializer for the class RESTThread
@@ -223,7 +219,7 @@ class RESTThread(threading.Thread):
           retry_login: How long to wait before retrying a login. Default
           is 3600 seconds (one hour).
 
-          retry_certificate: How long to wait before retrying after an SSL certicate error. Default
+          retry_ssl: How long to wait before retrying after an SSL error. Default
           is 3600 seconds (one hour).
 
           softwaretype: Sent as field "softwaretype in the Ambient post.
@@ -250,7 +246,7 @@ class RESTThread(threading.Thread):
         self.timeout = to_int(timeout)
         self.retry_wait = to_int(retry_wait)
         self.retry_login = to_int(retry_login)
-        self.retry_certificate = to_int(retry_certificate)
+        self.retry_ssl = to_int(retry_ssl)
         self.softwaretype = softwaretype
         self.lastpost = 0
         self.skip_upload = to_bool(skip_upload)
@@ -392,13 +388,14 @@ class RESTThread(threading.Thread):
                 if self.log_failure:
                     _time_str = timestamp_to_string(_record['dateTime'])
                     log.error("%s: Failed to publish record %s: %s" % (self.protocol_name, _time_str, e))
-            except CertificateError as e:
-                if self.retry_certificate:
-                    log.error("%s: Bad SSL certificate (%s); waiting %s minutes then retrying",
-                              self.protocol_name, e, self.retry_certificate / 60.0)
-                    time.sleep(self.retry_certificate)
+            except ssl.SSLError as e:
+                if self.retry_ssl:
+                    log.error("%s: SSL error (%s); waiting %s minutes then retrying",
+                              self.protocol_name, e, self.retry_ssl / 60.0)
+                    time.sleep(self.retry_ssl)
                 else:
-                    log.error("%s: Bad SSL certificate; no retry specified. Terminating", self.protocol_name)
+                    log.error("%s: SSL error (%s); no retry specified. Terminating",
+                              self.protocol_name, e)
                     raise
             except Exception as e:
                 # Some unknown exception occurred. This is probably a serious
@@ -465,13 +462,10 @@ class RESTThread(threading.Thread):
                     # If this is not the first time through, sleep a bit before retrying
                     time.sleep(self.retry_wait)
 
-                try:
-                    # Do a single post. The function post_request() can be
-                    # specialized by a RESTful service to catch any unusual
-                    # exceptions.
-                    _response = self.post_request(request, data)
-                except ssl.CertificateError as e:
-                    raise CertificateError(str(e))
+                # Do a single post. The function post_request() can be
+                # specialized by a RESTful service to catch any unusual
+                # exceptions.
+                _response = self.post_request(request, data)
 
                 if 200 <= _response.code <= 299:
                     # No exception thrown and we got a good response code, but
@@ -881,7 +875,7 @@ class AmbientThread(RESTThread):
                  essentials={},
                  post_interval=None, max_backlog=six.MAXSIZE, stale=None,
                  log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5, retry_login=3600, retry_certificate=3600,
+                 timeout=10, max_tries=3, retry_wait=5, retry_login=3600, retry_ssl=3600,
                  softwaretype="weewx-%s" % weewx.__version__,
                  skip_upload=False):
 
@@ -910,7 +904,7 @@ class AmbientThread(RESTThread):
                                             max_tries=max_tries,
                                             retry_wait=retry_wait,
                                             retry_login=retry_login,
-                                            retry_certificate=retry_certificate,
+                                            retry_ssl=retry_ssl,
                                             softwaretype=softwaretype,
                                             skip_upload=skip_upload)
         self.station = station
@@ -1219,17 +1213,17 @@ class WOWThread(AmbientThread):
     """Class for posting to the WOW variant of the Ambient protocol."""
 
     # Types and formats of the data to be published:
-    _FORMATS = {'dateTime': 'dateutc=%s',
-                'barometer': 'baromin=%.3f',
-                'outTemp': 'tempf=%.1f',
+    _FORMATS = {'dateTime'   : 'dateutc=%s',
+                'barometer'  : 'baromin=%.3f',
+                'outTemp'    : 'tempf=%.1f',
                 'outHumidity': 'humidity=%.0f',
-                'windSpeed': 'windspeedmph=%.0f',
-                'windDir': 'winddir=%.0f',
-                'windGust': 'windgustmph=%.0f',
+                'windSpeed'  : 'windspeedmph=%.0f',
+                'windDir'    : 'winddir=%.0f',
+                'windGust'   : 'windgustmph=%.0f',
                 'windGustDir': 'windgustdir=%.0f',
-                'dewpoint': 'dewptf=%.1f',
-                'hourRain': 'rainin=%.2f',
-                'dayRain': 'dailyrainin=%.2f'}
+                'dewpoint'   : 'dewptf=%.1f',
+                'hourRain'   : 'rainin=%.2f',
+                'dayRain'    : 'dailyrainin=%.2f'}
 
     def format_url(self, incoming_record):
         """Return an URL for posting using WOW's version of the Ambient
@@ -1696,15 +1690,15 @@ class StationRegistryThread(RESTThread):
         }
         return _record
 
-    _FORMATS = {'station_url': 'station_url=%s',
-                'description': 'description=%s',
-                'latitude': 'latitude=%.4f',
-                'longitude': 'longitude=%.4f',
-                'station_type': 'station_type=%s',
+    _FORMATS = {'station_url'  : 'station_url=%s',
+                'description'  : 'description=%s',
+                'latitude'     : 'latitude=%.4f',
+                'longitude'    : 'longitude=%.4f',
+                'station_type' : 'station_type=%s',
                 'station_model': 'station_model=%s',
-                'python_info': 'python_info=%s',
+                'python_info'  : 'python_info=%s',
                 'platform_info': 'platform_info=%s',
-                'weewx_info': 'weewx_info=%s'}
+                'weewx_info'   : 'weewx_info=%s'}
 
     def format_url(self, record):
         """Return an URL for posting using the StationRegistry protocol."""
@@ -1713,7 +1707,12 @@ class StationRegistryThread(RESTThread):
         for _key in StationRegistryThread._FORMATS:
             v = record[_key]
             if v is not None:
-                _liststr.append(urllib.parse.quote_plus(StationRegistryThread._FORMATS[_key] % v, '='))
+                # Under Python 2, quote_plus() can only accept strings (no unicode).
+                # If necessary, convert.
+                if isinstance(v, six.string_types):
+                    v = six.ensure_str(v)
+                _liststr.append(urllib.parse.quote_plus(StationRegistryThread._FORMATS[_key] % v,
+                                                        '='))
         _urlquery = '&'.join(_liststr)
         _url = "%s?%s" % (self.server_url, _urlquery)
         return _url
@@ -1839,18 +1838,18 @@ AWEKAS = StdAWEKAS
 
 class AWEKASThread(RESTThread):
     _SERVER_URL = 'http://data.awekas.at/eingabe_pruefung.php'
-    _FORMATS = {'barometer': '%.3f',
-                'outTemp': '%.1f',
+    _FORMATS = {'barometer'  : '%.3f',
+                'outTemp'    : '%.1f',
                 'outHumidity': '%.0f',
-                'windSpeed': '%.1f',
-                'windDir': '%.0f',
-                'windGust': '%.1f',
-                'dewpoint': '%.1f',
-                'hourRain': '%.2f',
-                'dayRain': '%.2f',
-                'radiation': '%.2f',
-                'UV': '%.2f',
-                'rainRate': '%.2f'}
+                'windSpeed'  : '%.1f',
+                'windDir'    : '%.0f',
+                'windGust'   : '%.1f',
+                'dewpoint'   : '%.1f',
+                'hourRain'   : '%.2f',
+                'dayRain'    : '%.2f',
+                'radiation'  : '%.2f',
+                'UV'         : '%.2f',
+                'rainRate'   : '%.2f'}
 
     def __init__(self, q, username, password, latitude, longitude,
                  manager_dict,
@@ -1858,7 +1857,7 @@ class AWEKASThread(RESTThread):
                  post_interval=300, max_backlog=six.MAXSIZE, stale=None,
                  log_success=True, log_failure=True,
                  timeout=10, max_tries=3, retry_wait=5,
-                 retry_login=3600, retry_certificate=3600, skip_upload=False):
+                 retry_login=3600, retry_ssl=3600, skip_upload=False):
         """Initialize an instances of AWEKASThread.
 
         Parameters specific to this class:
@@ -1902,7 +1901,7 @@ class AWEKASThread(RESTThread):
                                            max_tries=max_tries,
                                            retry_wait=retry_wait,
                                            retry_login=retry_login,
-                                           retry_certificate=retry_certificate,
+                                           retry_ssl=retry_ssl,
                                            skip_upload=skip_upload)
         self.username = username
         # Calculate and save the password hash

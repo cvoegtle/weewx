@@ -4003,10 +4003,6 @@ class MyStats(SearchList):                                                   # 1
         <h3>Translate the templates</h3>
 
         <p>
-            Translate the text in each template file to the target language. Any strings that are not specified using
-            tags will need to be translated.
-        </p>
-        <p>
             In every HTML template (these typically have a file suffix of <span class="code">.html.tmpl</span>) change
             the HTML "lang" attribute to the target language. For example, for Spanish use <span class="code">es</span>:
         </p>
@@ -4026,6 +4022,30 @@ class MyStats(SearchList):                                                   # 1
             <a href="https://www.w3schools.com/tags/ref_language_codes.asp">language codes</a><br/> <a
             href="https://www.w3schools.com/tags/ref_country_codes.asp">country codes</a><br/>
         </p>
+
+        <p>
+            Then, go through each template file in the skin, translating any text to your target language. For example,
+            suppose you were localizing the <em>Seasons</em> skin to the French language. Search all the template
+            files for English phrases that need to be translated. As an example, the file <span class="code">current.inc</span>
+            has a section that looks like this:
+        </p>
+       <pre class="tty">
+&lt;div id='current_widget' class="widget"&gt;
+  &lt;div class="widget_title"&gt;
+    Current Conditions
+    &lt;a class="widget_control"
+      onclick="toggle_widget('current')"&gt;&amp;diams;&lt;/a&gt;
+  &lt;/div&gt;
+        </pre>
+<p>This would need to be changed to this:</p>
+        <pre class="tty">
+&lt;div id='current_widget' class="widget"&gt;
+  &lt;div class="widget_title"&gt;
+    <span class="highlight">Conditions Actuelle</span>
+    &lt;a class="widget_control"
+      onclick="toggle_widget('current')"&gt;&amp;diams;&lt;/a&gt;
+  &lt;/div&gt;
+        </pre>
 
         <h3>Translate labels and modify local options</h3>
 
@@ -4712,7 +4732,7 @@ schema_with_electricity = {
         database = archive_sqlite
         table_name = archive
         manager = weewx.manager.DaySummaryManager
-        <span class="highlight">schema = user.electricity.electricity_schema</span></pre>
+        <span class="highlight">schema = user.electricity.schema_with_electricity</span></pre>
             </li>
 
             <li>
@@ -5672,7 +5692,8 @@ UV      = UV Index</pre>
 
         <p>
             The measurement unit to be used for wind speeds. Possible options are one of <span class="code">mile_per_hour</span>,
-            <span class="code">km_per_hour</span>, <span class="code">knot</span>, or <span class="code">meter_per_second</span>.
+            <span class="code">km_per_hour</span>, <span class="code">knot</span>, <span class="code">meter_per_second</span>,
+            or <span class="code">beaufort</span>.
         </p>
 
         <p class="config_important">group_speed2</p>
@@ -6657,6 +6678,14 @@ growing_base = 50.0, degree_F</pre>
                 <td>microgram_per_meter_cubed</td>
             </tr>
             <tr>
+                <td class="first_col">group_count</td>
+                <td>leafWet1<br/>leafWet2<br/>lightning_disturber_count<br/>lightning_noise_count<br/>lightning_strike_count<br/></td>
+                <td>count</td>
+                <td>count</td>
+                <td>count</td>
+                <td>count</td>
+            </tr>
+            <tr>
                 <td class="first_col">group_data</td>
                 <td></td>
                 <td>byte<br/> bit</td>
@@ -6683,7 +6712,7 @@ growing_base = 50.0, degree_F</pre>
             </tr>
             <tr>
                 <td class="first_col">group_distance</td>
-                <td>windrun</td>
+                <td>windrun<br/>lightning_distance</td>
                 <td>mile<br/>km</td>
                 <td>mile</td>
                 <td>km</td>
@@ -6800,7 +6829,7 @@ growing_base = 50.0, degree_F</pre>
                 <td class="first_col">group_speed</td>
                 <td>wind <br/> windGust <br/> windSpeed <br/> windgustvec <br/> windvec
                 </td>
-                <td>mile_per_hour <br/> km_per_hour <br/> knot <br/> meter_per_second
+                <td>mile_per_hour <br/> km_per_hour <br/> knot <br/> meter_per_second <br/> beaufort
                 </td>
                 <td>mile_per_hour</td>
                 <td>meter_per_second</td>
@@ -6820,7 +6849,7 @@ growing_base = 50.0, degree_F</pre>
                 <td class="first_col">group_temperature</td>
                 <td>appTemp <br/> dewpoint <br/> extraTemp1 <br/> extraTemp2 <br/> extraTemp3 <br/> heatindex <br/>
                     heatingTemp <br/> humidex <br/> inTemp <br/> leafTemp1 <br/> leafTemp2 <br/> outTemp <br/> soilTemp1
-                    <br/> soilTemp2 <br/> soilTemp3 <br/> soilTemp4 <br/> windchill
+                    <br/> soilTemp2 <br/> soilTemp3 <br/> soilTemp4 <br/> windchill <br/> THSW
                 </td>
                 <td>degree_F <br/> degree_C
                 </td>

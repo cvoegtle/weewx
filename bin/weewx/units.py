@@ -62,6 +62,15 @@ def mps_to_mph(x):
 def kph_to_mph(x):
     return x * 1000.0 / METER_PER_MILE
 
+def mph_to_knot(x):
+    return x * 0.868976242
+
+def kph_to_knot(x):
+    return x * 0.539956803
+
+def mps_to_knot(x):
+    return x * 1.94384449
+
 class UnknownType(object):
     """Indicates that the observation type is unknown."""
     def __init__(self, obs_type):
@@ -88,9 +97,12 @@ obs_group_dict = ListOfDicts({
     "pm10_0"             : "group_concentration",
     "pm1_0"              : "group_concentration",
     "pm2_5"              : "group_concentration",
-    "beaufort"           : "group_count",
+    "beaufort"           : "group_count",           # DEPRECATED
     "leafWet1"           : "group_count",
     "leafWet2"           : "group_count",
+    "lightning_disturber_count" : "group_count",
+    "lightning_noise_count"     : "group_count",
+    "lightning_strike_count"    : "group_count",
     "cooldeg"            : "group_degree_day",
     "heatdeg"            : "group_degree_day",
     "growdeg"            : "group_degree_day",
@@ -98,6 +110,7 @@ obs_group_dict = ListOfDicts({
     "vecdir"             : "group_direction",
     "windDir"            : "group_direction",
     "windGustDir"        : "group_direction",
+    "lightning_distance" : "group_distance",
     "windrun"            : "group_distance",
     "interval"           : "group_interval",
     "soilMoist1"         : "group_moisture",
@@ -167,6 +180,7 @@ obs_group_dict = ListOfDicts({
     "soilTemp3"          : "group_temperature",
     "soilTemp4"          : "group_temperature",
     "windchill"          : "group_temperature",
+    "THSW"               : "group_temperature",
     "dateTime"           : "group_time",
     "stormStart"         : "group_time",
     "UV"                 : "group_uv",
@@ -297,7 +311,7 @@ conversionDict = {
                           'degree_E'         : FtoE},
     'degree_F_day'     : {'degree_C_day'     : lambda x : x * (5.0/9.0)},
     'mile_per_hour'    : {'km_per_hour'      : lambda x : x * 1.609344,
-                          'knot'             : lambda x : x * 0.868976242,
+                          'knot'             : mph_to_knot,
                           'meter_per_second' : lambda x : x * 0.44704},
     'mile_per_hour2'   : {'km_per_hour2'     : lambda x : x * 1.609344,
                           'knot2'            : lambda x : x * 0.868976242,
@@ -335,10 +349,10 @@ conversionDict = {
                           'degree_E'         : CtoE},
     'degree_C_day'     : {'degree_F_day'     : lambda x : x * (9.0/5.0)},
     'km_per_hour'      : {'mile_per_hour'    : kph_to_mph,
-                          'knot'             : lambda x : x * 0.539956803,
+                          'knot'             : kph_to_knot,
                           'meter_per_second' : lambda x : x * 0.277777778},
     'meter_per_second' : {'mile_per_hour'    : mps_to_mph,
-                          'knot'             : lambda x : x * 1.94384449,
+                          'knot'             : mps_to_knot,
                           'km_per_hour'      : lambda x : x * 3.6},
     'meter_per_second2': {'mile_per_hour2'   : lambda x : x * 2.23693629,
                           'knot2'            : lambda x : x * 1.94384449,

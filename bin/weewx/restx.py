@@ -171,9 +171,16 @@ class RESTThread(threading.Thread):
     def __init__(self, q, protocol_name,
                  essentials={},
                  manager_dict=None,
-                 post_interval=None, max_backlog=six.MAXSIZE, stale=None,
-                 log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5, retry_login=3600, retry_ssl=3600,
+                 post_interval=None,
+                 max_backlog=six.MAXSIZE,
+                 stale=None,
+                 log_success=True,
+                 log_failure=True,
+                 timeout=10,
+                 max_tries=3,
+                 retry_wait=5,
+                 retry_login=3600,
+                 retry_ssl=3600,
                  softwaretype="weewx-%s" % weewx.__version__,
                  skip_upload=False):
         """Initializer for the class RESTThread
@@ -868,14 +875,23 @@ class AmbientThread(RESTThread):
     def __init__(self,
                  q,
                  manager_dict,
-                 station, password, server_url,
+                 station,
+                 password,
+                 server_url,
                  post_indoor_observations=False,
                  api_key=None,  # Not used.
                  protocol_name="Unknown-Ambient",
                  essentials={},
-                 post_interval=None, max_backlog=six.MAXSIZE, stale=None,
-                 log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5, retry_login=3600, retry_ssl=3600,
+                 post_interval=None,
+                 max_backlog=six.MAXSIZE,
+                 stale=None,
+                 log_success=True,
+                 log_failure=True,
+                 timeout=10,
+                 max_tries=3,
+                 retry_wait=5,
+                 retry_login=3600,
+                 retry_ssl=3600,
                  softwaretype="weewx-%s" % weewx.__version__,
                  skip_upload=False):
 
@@ -1012,15 +1028,25 @@ class AmbientThread(RESTThread):
 class AmbientLoopThread(AmbientThread):
     """Version used for the Rapidfire protocol."""
 
-    def __init__(self, q, manager_dict,
-                 station, password, server_url,
+    def __init__(self,
+                 q,
+                 manager_dict,
+                 station,
+                 password,
+                 server_url,
                  post_indoor_observations=False,
                  api_key=None,
                  protocol_name="Unknown-Ambient",
                  essentials={},
-                 post_interval=None, max_backlog=six.MAXSIZE, stale=None,
-                 log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5, rtfreq=2.5):
+                 post_interval=None,
+                 max_backlog=six.MAXSIZE,
+                 stale=None,
+                 log_success=True,
+                 log_failure=True,
+                 timeout=10,
+                 max_tries=3,
+                 retry_wait=5,
+                 rtfreq=2.5):
         """
         Initializer for the AmbientLoopThread class.
 
@@ -1067,10 +1093,21 @@ class AmbientLoopThread(AmbientThread):
         return _record
 
 class WetterwolkeThread(AmbientThread):
-    def __init__(self, queue, manager_dict, station, password, server_url, essentials,
-                 post_interval=None,  post_indoor_observations=True, stale=None,
-                 log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5 ):
+    def __init__(self,
+                 queue,
+                 manager_dict,
+                 station,
+                 password,
+                 server_url,
+                 essentials,
+                 post_interval=None,
+                 post_indoor_observations=True,
+                 stale=None,
+                 log_success=True,
+                 log_failure=True,
+                 timeout=10,
+                 max_tries=3,
+                 retry_wait=5 ):
         super(WetterwolkeThread, self).__init__(queue,
                                                 station=station,
                                                 password=password,
@@ -1141,17 +1178,37 @@ class WetterwolkeThread(AmbientThread):
         return _url
 
 class WetterwolkeLoopThread(AmbientLoopThread):
-    def __init__(self, queue, manager_dict,
-                 station, password, server_url,
+    def __init__(self,
+                 queue,
+                 manager_dict,
+                 station,
+                 password,
+                 server_url,
                  essentials={},
-                 post_interval=None, post_indoor_observations=True, stale=None,
-                 log_success=True, log_failure=True,
-                 timeout=10, max_tries=3, retry_wait=5, rtfreq=2.5):
-        super(WetterwolkeLoopThread, self).__init__(queue, manager_dict, station, password, server_url,
-                                                    protocol_name="Wetterwolke-RF", essentials=essentials,
-                                                    post_interval=post_interval, stale=stale,
-                                                    log_success=log_success, log_failure=log_failure, timeout=timeout,
-                                                    max_tries=max_tries, retry_wait=retry_wait, rtfreq=rtfreq)
+                 post_interval=None,
+                 post_indoor_observations=True,
+                 stale=None,
+                 log_success=True,
+                 log_failure=True,
+                 timeout=10,
+                 max_tries=3,
+                 retry_wait=5,
+                 rtfreq=2.5):
+        super(WetterwolkeLoopThread, self).__init__(queue,
+                                                    manager_dict,
+                                                    station,
+                                                    password,
+                                                    server_url,
+                                                    protocol_name="Wetterwolke-RF",
+                                                    essentials=essentials,
+                                                    post_interval=post_interval,
+                                                    stale=stale,
+                                                    log_success=log_success,
+                                                    log_failure=log_failure,
+                                                    timeout=timeout,
+                                                    max_tries=max_tries,
+                                                    retry_wait=retry_wait,
+                                                    rtfreq=rtfreq)
 
         self.formats = dict(WetterwolkeLoopThread._FORMATS)
         if to_bool(post_indoor_observations):

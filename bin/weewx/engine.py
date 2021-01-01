@@ -124,6 +124,15 @@ class StdEngine(object):
         # instantiated:
         self.service_obj = []
 
+        # Versions before v4.2 did not have the service group 'xtype_services'. Set a default
+        # for them:
+        if 'Engine' in config_dict and 'Services' in config_dict['Engine']:
+            config_dict['Engine']['Services'].setdefault('xtype_services',
+                                                         ['weewx.wxxtypes.StdWXXTypes',
+                                                          'weewx.wxxtypes.StdPressureCooker',
+                                                          'weewx.wxxtypes.StdRainRater',
+                                                          'weewx.wxxtypes.StdDelta'])
+
         # Wrap the instantiation of the services in a try block, so if an
         # exception occurs, any service that may have started can be shut
         # down in an orderly way.
@@ -271,6 +280,30 @@ class StdEngine(object):
             return self.console.getTime()
         except NotImplementedError:
             return int(time.time() + 0.5)
+
+
+# ==============================================================================
+#                    Class DummyEngine
+# ==============================================================================
+
+class DummyEngine(StdEngine):
+    """A dummy engine, useful for loading services, but without actually running the engine."""
+
+    class DummyConsole(object):
+        """A dummy console, used to offer an archive_interval."""
+
+        def __init__(self, config_dict):
+            try:
+                self.archive_interval = to_int(config_dict['StdArchive']['archive_interval'])
+            except KeyError:
+                self.archive_interval = 300
+
+        def closePort(self):
+            pass
+
+    def setupStation(self, config_dict):
+        self.console = DummyEngine.DummyConsole(config_dict)
+
 
 #==============================================================================
 #                    Class StdService
@@ -792,7 +825,7 @@ class StdReport(StdService):
         # Do not launch the reporting thread if an old one is still alive.
         # To guard against a zombie thread (alive, but doing nothing) launch
         # anyway if enough time has passed.
-        if self.thread and self.thread.isAlive():
+        if self.thread and self.thread.is_alive():
             thread_age = time.time() - self.launch_time
             if thread_age < self.max_wait:
                 log.info("Launch of report thread aborted: existing report thread still running")
@@ -816,7 +849,7 @@ class StdReport(StdService):
         if self.thread:
             log.info("Shutting down StdReport thread")
             self.thread.join(20.0)
-            if self.thread.isAlive():
+            if self.thread.is_alive():
                 log.error("Unable to shut down StdReport thread")
             else:
                 log.debug("StdReport thread has been terminated")

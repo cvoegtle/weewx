@@ -1,10 +1,80 @@
-weewx change history
+WeeWX change history
 --------------------
 
-4.2.1 MM/DD/YYYY
+4.4.1 MM/DD/YYYY
+
+Changed NOAA reports to use the 'normalized_ascii' encoding instead of 'utf8'
+(which did not display correctly for most browsers). Fixes issue #646.
+
+Plots longer than 2 years use a 6 month time increment.
+
+Uploads to PWSWeather and WOW now use HTTPS. Fixes issue #650.
+
+Fixed bug that prevented the Vantage driver from waiting before a wakeup retry.
+Thanks to user Les Niles!
+
+Changed the way of expressing the old "wview" schema to the new V4 way.
+Hopefully, this will lead to fewer support issues. Fixes issue #651.
+
+
+4.4.0 01/30/2021
+
+StdWXCalculate can now do calculations for only LOOP packets, only archive
+records, or both. PR #630. Thanks to user g-eddy!
+
+Introduced aggregate types "avg_ge" and "avg_le". PR #631. Thanks to user
+edi-x!
+
+NOAA reports now use a 'utf8' encoding instead of 'strict_ascii'. This will only
+affect new installations. Fixes issue #644.
+
+Introduced new encoding type 'normalized_ascii', which replaces characters that
+have accented marks with analogous ascii characters. For example, ö gets
+replaced with o.
+
+Patching process is more forgiving about records with interval less than or
+equal to zero.
+
+Fixed problem where invalid mintime or maxtime was returned for days with no
+data. Fixes issue #635.
+
+Syntax errors in weewx.conf are now logged. PR #637. Thanks to user Rich Bell!
+
+Fixed problem where plots could fail if the data range was outside of a
+specified axes range. Fixes issue #638.
+
+Fixed problem that could cause reporting to fail under Python2.7 if the
+configuration dictionary contained a comment with a UTF-8 character. Fixes
+issue #639.
+
+Fixed problem that could cause program to crash if asking for deltas of a non-
+existent key.
+
+The version 4.3.0 patch to fix the incorrect calculation of sums in the daily
+summary tables itself contained a bug. This version includes a patch to fix the
+problem. It runs once at startup. Fixes issue #642.
+
+
+4.3.0 01/04/2020
+
+Version 4.2.0 had a bug, which caused the sums in the daily summary to be
+incorrectly calculated. This version includes a patch to fix the problem. It
+runs once at startup. Fixes issue #623.
+
+The WMR200 driver is no longer supported. An unsupported version can be found
+at https://github.com/weewx/weewx-wmr200. Support for LaCrosse WS23xx and
+Oregon WMR300 will continue.
 
 Service weewx.wxxtypes.StdDelta was inadvertently left out of the list of
 services to be run. Fortunately, it is not used. Yet. Added it back in.
+
+Added the "old" NWS algorithm as an option for calculating heat index.
+
+Changed how various undocumented parameters in [StdWXCalculate] are specified.
+The only one people are likely to have used is 'ignore_zero_wind'. Its name has
+changed to 'force_null', and it has been moved. See the Upgrading Guide.
+
+Documented the various [StdWXCalculate] options.
 
 Fixed corner case for windDir when using software record generation,
 ignore_zero_wind=True, and windSpeed=0 for entire record interval. Now emits
@@ -13,7 +83,21 @@ last windDir value.
 Fixed problem when looking up stars with more than one word in their name.
 Fixes issue #620.
 
-Fixed problem that caused daily summary weights to revert to V1.0 style weights.
+Fixed problem where wind gust direction is not available when using software
+record generation.
+
+Added --no-prompt action to wee_import allowing wee_import to be run unattended.
+
+Fixed problem that prevented option `observations` from being used in the
+simulator. Thanks to user Graham!
+
+Fixed problem where wind chill was calculated incorrectly for METRICWX
+databases. PR #627. Thanks to user edi-x!
+
+Allow wind vectors to be converted to unit of beaufort. Fixes issue #629.
+
+Option log_failure under [StdReport] is set to True by the upgrade process.
+See the Upgrading Guide.
 
 
 4.2.0 10/26/2020

@@ -1,5 +1,5 @@
 #
-#    Copyright (c) 2009-2020 Tom Keffer <tkeffer@gmail.com>
+#    Copyright (c) 2009-2022 Tom Keffer <tkeffer@gmail.com>
 #
 #    See the file LICENSE.txt for your full rights.
 #
@@ -41,7 +41,9 @@ class FtpUpload(object):
                  secure=False,
                  debug=0,
                  secure_data=True,
-                 reuse_ssl=False):
+                 reuse_ssl=False,
+                 encoding='utf-8',
+                 ciphers=None):
         """Initialize an instance of FtpUpload.
         
         After initializing, call method run() to perform the upload.
@@ -69,6 +71,11 @@ class FtpUpload(object):
 
         reuse_ssl: Work around a bug in the Python library that closes ssl sockets that should
         be reused. See https://bit.ly/3dKq4JY [Optional. Default is False]
+
+        encoding: The vast majority of FTP servers chat using UTF-8. However, there are a few
+        oddballs that use Latin-1.
+
+        ciphers: Explicitly set the cipher(s) to be used by the ssl sockets.
         """
         self.server = server
         self.user = user
@@ -82,8 +89,10 @@ class FtpUpload(object):
         self.debug = debug
         self.secure_data = secure_data
         self.reuse_ssl = reuse_ssl
+        self.encoding = encoding
+        self.ciphers = ciphers
 
-        if self.reuse_ssl and sys.version < '3.6':
+        if self.reuse_ssl and (sys.version_info.major < 3 or sys.version_info.minor < 6):
             raise ValueError("Reusing an SSL connection requires Python version 3.6 or greater")
 
     def run(self):
@@ -119,12 +128,45 @@ class FtpUpload(object):
                                 conn.__class__ = ReusedSslSocket
                             return conn, size
                     log.debug("Reusing SSL connections.")
-                    ftp_server = WeeFTPTLS()
+                    # Python 3.8 and earlier do not support the encoding 
+                    # parameter. Be prepared to catch the TypeError that may 
+                    # occur with python 3.8 and earlier.
+                    try:
+                        ftp_server = WeeFTPTLS(encoding=self.encoding)
+                    except TypeError:
+                        # we likely have python 3.8 or earlier, so try again
+                        # without encoding
+                        ftp_server = WeeFTPTLS()
+                        log.debug("FTP encoding not supported, ignoring.")
                 else:
-                    ftp_server = ftplib.FTP_TLS()
+                    # Python 3.8 and earlier do not support the encoding 
+                    # parameter. Be prepared to catch the TypeError that may 
+                    # occur with python 3.8 and earlier.
+                    try:
+                        ftp_server = ftplib.FTP_TLS(encoding=self.encoding)
+                    except TypeError:
+                        # we likely have python 3.8 or earlier, so try again
+                        # without encoding
+                        ftp_server = ftplib.FTP_TLS()
+                        log.debug("FTP encoding not supported, ignoring.")
+
+                # If the user has specified one, set a customized cipher:
+                if self.ciphers:
+                    ftp_server.context.set_ciphers(self.ciphers)
+                    log.debug("Set ciphers to %s", self.ciphers)
+
             else:
                 log.debug("Attempting connection to %s", self.server)
-                ftp_server = ftplib.FTP()
+                # Python 3.8 and earlier do not support the encoding parameter. 
+                # Be prepared to catch the TypeError that may occur with 
+                # python 3.8 and earlier.
+                try:
+                    ftp_server = ftplib.FTP(encoding=self.encoding)
+                except TypeError:
+                    # we likely have python 3.8 or earlier, so try again
+                    # without encoding
+                    ftp_server = ftplib.FTP()
+                    log.debug("FTP encoding not supported, ignoring.")
 
             if self.debug >= 2:
                 ftp_server.set_debuglevel(self.debug)

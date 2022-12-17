@@ -90,11 +90,11 @@ class TestSimpleFunctions(unittest.TestCase):
         self.assertIsNone(result[0])
 
     def test_windDir_no_ignore(self):
-        # Now let's not ignore zero wind
+        # Now let's not ignore zero wind. This should become a No-op, which is signaled by
+        # raising weewx.NoCalculate
         wx_calc = weewx.wxxtypes.WXXTypes(altitude_vt, latitude, longitude, force_null=False)
-        result = wx_calc.get_scalar('windDir', self.record, None)
-        self.assertIsNotNone(result[0])
-        self.assertEqual(result[0], self.record['windDir'])
+        with self.assertRaises(weewx.NoCalculate):
+            wx_calc.get_scalar('windDir', self.record, None)
 
     def calc(self, key, *crits):
         """Calculate derived type 'key'. Parameters in "crits" are required to perform the
@@ -322,12 +322,12 @@ class TestRainRater(unittest.TestCase):
         record_metric = weewx.units.to_METRICWX(record)
         # Add it to the RainRater object
         rain_rater.add_loop_packet(record_metric)
-        # The rest should be as before:
+        # The results should be in metric.
         # Get the rainRate out of it
         rate = rain_rater.get_scalar('rainRate', record, self.db_manager)
         # Check its values
-        self.assertAlmostEqual(rate[0], 13.80, 2)
-        self.assertEqual(rate[1:], ('inch_per_hour', 'group_rainrate'))
+        self.assertAlmostEqual(rate[0], 350.52, 2)
+        self.assertEqual(rate[1:], ('mm_per_hour', 'group_rainrate'))
 
     def test_trim(self):
         """"Test trimming old events"""
@@ -409,9 +409,9 @@ class TestET(unittest.TestCase):
             self.db_manager.addRecord(record)
 
     def test_ET(self):
-        wx_xtypes = weewx.wxxtypes.WXXTypes(altitude_vt,
-                                            latitude_f=latitude,
-                                            longitude_f=longitude)
+        wx_xtypes = weewx.wxxtypes.ETXType(altitude_vt,
+                                           latitude_f=latitude,
+                                           longitude_f=longitude)
         ts = self.db_manager.lastGoodStamp()
         record = self.db_manager.getRecord(ts)
         et_vt = wx_xtypes.get_scalar('ET', record, self.db_manager)

@@ -7,7 +7,7 @@
 from __future__ import absolute_import
 import time
 
-__version__="4.5.1"
+__version__="4.9.2a1"
 
 # Holds the program launch time in unix epoch seconds:
 # Useful for calculating 'uptime.'
@@ -82,6 +82,10 @@ class UnknownAggregation(ValueError):
 
 class CannotCalculate(ValueError):
     """Exception raised when a type cannot be calculated."""
+
+class NoCalculate(Exception):
+    """Exception raised when a type does not need to be calculated."""
+
 
 # =============================================================================
 #                       Possible event types.

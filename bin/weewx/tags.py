@@ -30,7 +30,8 @@ class TimeBinder(object):
     """
 
     def __init__(self, db_lookup, report_time,
-                 formatter=weewx.units.Formatter(), converter=weewx.units.Converter(),
+                 formatter=None,
+                 converter=None,
                  **option_dict):
         """Initialize an instance of DatabaseBinder.
 
@@ -50,8 +51,8 @@ class TimeBinder(object):
         """
         self.db_lookup = db_lookup
         self.report_time = report_time
-        self.formatter = formatter
-        self.converter = converter
+        self.formatter = formatter or weewx.units.Formatter()
+        self.converter = converter or weewx.units.Converter()
         self.option_dict = option_dict
 
     # What follows is the list of time period attributes:
@@ -84,7 +85,7 @@ class TimeBinder(object):
     def week(self, data_binding=None, weeks_ago=0):
         week_start = to_int(self.option_dict.get('week_start', 6))
         return TimespanBinder(
-            weeutil.weeutil.archiveWeekSpan(self.report_time, week_start, weeks_ago=weeks_ago),
+            weeutil.weeutil.archiveWeekSpan(self.report_time, startOfWeek=week_start, weeks_ago=weeks_ago),
             self.db_lookup, data_binding=data_binding,
             context='week', formatter=self.formatter, converter=self.converter,
             **self.option_dict)
@@ -103,6 +104,17 @@ class TimeBinder(object):
             context='year', formatter=self.formatter, converter=self.converter,
             **self.option_dict)
 
+    def alltime(self, data_binding=None):
+        manager = self.db_lookup(data_binding)
+        # We do not need to worry about 'first' being None, because CheetahGenerator would not
+        # start the generation if this was the case.
+        first = manager.firstGoodStamp()
+        return TimespanBinder(
+            weeutil.weeutil.TimeSpan(first, self.report_time),
+            self.db_lookup, data_binding=data_binding,
+            context='year', formatter=self.formatter, converter=self.converter,
+            **self.option_dict)
+
     def rainyear(self, data_binding=None):
         rain_year_start = to_int(self.option_dict.get('rain_year_start', 1))
         return TimespanBinder(
@@ -112,12 +124,12 @@ class TimeBinder(object):
             **self.option_dict)
 
     def span(self, data_binding=None, time_delta=0, hour_delta=0, day_delta=0, week_delta=0,
-             month_delta=0, year_delta=0):
+             month_delta=0, year_delta=0, boundary=None):
         return TimespanBinder(
             weeutil.weeutil.archiveSpanSpan(self.report_time, time_delta=time_delta,
                                             hour_delta=hour_delta, day_delta=day_delta,
                                             week_delta=week_delta, month_delta=month_delta,
-                                            year_delta=year_delta),
+                                            year_delta=year_delta, boundary=boundary),
             self.db_lookup, data_binding=data_binding,
             context='day', formatter=self.formatter, converter=self.converter,
             **self.option_dict)
@@ -146,12 +158,13 @@ class TimespanBinder(object):
        # Iterate by month:
        for monthStats in yearStats.months:
            # Print maximum temperature for each month in the year:
-           print monthStats.outTemp.max
+           print(monthStats.outTemp.max)
     """
 
     def __init__(self, timespan, db_lookup, data_binding=None, context='current',
-                 formatter=weewx.units.Formatter(),
-                 converter=weewx.units.Converter(), **option_dict):
+                 formatter=None,
+                 converter=None,
+                 **option_dict):
         """Initialize an instance of TimespanBinder.
 
         timespan: An instance of weeutil.Timespan with the time span over which the statistics are
@@ -179,8 +192,8 @@ class TimespanBinder(object):
         self.db_lookup = db_lookup
         self.data_binding = data_binding
         self.context = context
-        self.formatter = formatter
-        self.converter = converter
+        self.formatter = formatter or weewx.units.Formatter()
+        self.converter = converter or weewx.units.Converter()
         self.option_dict = option_dict
 
     # Iterate over all records in the time period:
@@ -246,6 +259,15 @@ class TimespanBinder(object):
     # Alias for the start time:
     dateTime = start
 
+    def check_for_data(self, sql_expr):
+        """Check whether the given sql expression returns any data"""
+        db_manager = self.db_lookup(self.data_binding)
+        try:
+            val = weewx.xtypes.get_aggregate(sql_expr, self.timespan, 'not_null', db_manager)
+            return bool(val[0])
+        except weewx.UnknownAggregation:
+            return False
+
     def __call__(self, data_binding=None):
         """The iterators return an instance of TimespanBinder. Allow them to override
         data_binding"""
@@ -283,7 +305,8 @@ class ObservationBinder(object):
     """
 
     def __init__(self, obs_type, timespan, db_lookup, data_binding, context,
-                 formatter=weewx.units.Formatter(), converter=weewx.units.Converter(),
+                 formatter=None,
+                 converter=None,
                  **option_dict):
         """ Initialize an instance of ObservationBinder
 
@@ -314,8 +337,8 @@ class ObservationBinder(object):
         self.db_lookup = db_lookup
         self.data_binding = data_binding
         self.context = context
-        self.formatter = formatter
-        self.converter = converter
+        self.formatter = formatter or weewx.units.Formatter()
+        self.converter = converter or weewx.units.Converter()
         self.option_dict = option_dict
 
     def __getattr__(self, aggregate_type):
@@ -418,7 +441,7 @@ class AggTypeBinder(object):
     for a query."""
 
     def __init__(self, aggregate_type, obs_type, timespan, db_lookup, data_binding, context,
-                 formatter=weewx.units.Formatter(), converter=weewx.units.Converter(),
+                 formatter=None, converter=None,
                  **option_dict):
         self.aggregate_type = aggregate_type
         self.obs_type = obs_type
@@ -426,8 +449,8 @@ class AggTypeBinder(object):
         self.db_lookup = db_lookup
         self.data_binding = data_binding
         self.context = context
-        self.formatter = formatter
-        self.converter = converter
+        self.formatter = formatter or weewx.units.Formatter()
+        self.converter = converter or weewx.units.Converter()
         self.option_dict = option_dict
 
     def __call__(self, *args, **kwargs):
@@ -483,12 +506,12 @@ class AggTypeBinder(object):
 class RecordBinder(object):
 
     def __init__(self, db_lookup, report_time,
-                 formatter=weewx.units.Formatter(), converter=weewx.units.Converter(),
+                 formatter=None, converter=None,
                  record=None):
         self.db_lookup = db_lookup
         self.report_time = report_time
-        self.formatter = formatter
-        self.converter = converter
+        self.formatter = formatter or weewx.units.Formatter()
+        self.converter = converter or weewx.units.Converter()
         self.record = record
 
     def current(self, timestamp=None, max_delta=None, data_binding=None):

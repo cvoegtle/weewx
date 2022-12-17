@@ -109,8 +109,6 @@ class CumulusSource(weeimport.Source):
 
         # field delimiter used in monthly log files, default to comma
         self.delimiter = str(cumulus_config_dict.get('delimiter', ','))
-        # decimal separator used in monthly log files, default to decimal point
-        self.decimal = cumulus_config_dict.get('decimal', '.')
 
         # date separator used in monthly log files, default to solidus
         separator = cumulus_config_dict.get('separator', '/')
@@ -152,7 +150,10 @@ class CumulusSource(weeimport.Source):
                    "fields in %s." % (self.import_config_path, )
             raise weewx.UnitError(_msg)
         else:
-            if temp_u in weewx.units.default_unit_format_dict:
+            # temperature units vary between unit systems so we can verify a
+            # valid temperature unit simply by checking for membership of
+            # weewx.units.conversionDict keys
+            if temp_u in weewx.units.conversionDict.keys():
                 self._header_map['cur_out_temp']['units'] = temp_u
                 self._header_map['curr_in_temp']['units'] = temp_u
                 self._header_map['cur_dewpoint']['units'] = temp_u
@@ -204,7 +205,10 @@ class CumulusSource(weeimport.Source):
                    "speed fields in %s." % (self.import_config_path, )
             raise weewx.UnitError(_msg)
         else:
-            if speed_u in weewx.units.default_unit_format_dict:
+            # speed units vary between unit systems so we can verify a valid
+            # speed unit simply by checking for membership of
+            # weewx.units.conversionDict keys
+            if speed_u in weewx.units.conversionDict.keys():
                 self._header_map['avg_wind_speed']['units'] = speed_u
                 self._header_map['gust_wind_speed']['units'] = speed_u
             else:
@@ -339,7 +343,7 @@ class CumulusSource(weeimport.Source):
                 print(_msg)
                 log.info(_msg)
             # make sure we have full stops as decimal points
-            _line = clean_row.replace(self.decimal, '.')
+            _line = clean_row.replace(self.decimal_sep, '.')
             # ignore any blank lines
             if _line != "\n":
                 # Cumulus has separate date and time fields as the first 2

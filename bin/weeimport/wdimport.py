@@ -222,9 +222,6 @@ class WDSource(weeimport.Source):
         # comma
         self.csv_delimiter = str(wd_config_dict.get('csv_delimiter', ','))
 
-        # decimal separator used in monthly log files, default to decimal point
-        self.decimal = wd_config_dict.get('decimal', '.')
-
         # ignore extreme > 255.0 values for temperature and humidity fields
         self.ignore_extr_th = weeutil.weeutil.tobool(wd_config_dict.get('ignore_extreme_temp_hum',
                                                                         True))
@@ -260,7 +257,10 @@ class WDSource(weeimport.Source):
                 # temperature
                 temp_u = wd_config_dict['Units'].get('temperature')
                 if temp_u is not None:
-                    if temp_u in weewx.units.default_unit_format_dict:
+                    # temperature units vary between unit systems so we can verify a
+                    # valid temperature unit simply by checking for membership of
+                    # weewx.units.conversionDict keys
+                    if temp_u in weewx.units.conversionDict.keys():
                         self._header_map['temperature']['units'] = temp_u
                         self._header_map['dewpoint']['units'] = temp_u
                         self._header_map['heatindex']['units'] = temp_u
@@ -568,7 +568,7 @@ class WDSource(weeimport.Source):
                     print(_msg)
                     log.info(_msg)
                 # make sure we have full stops as decimal points
-                _clean_data.append(clean_row.replace(self.decimal, '.'))
+                _clean_data.append(clean_row.replace(self.decimal_sep, '.'))
 
             # initialise a list to hold our processed data for this log file
             _data = []

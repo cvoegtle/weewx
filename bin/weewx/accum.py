@@ -31,7 +31,7 @@ import math
 import six
 
 import weewx
-from weeutil.weeutil import ListOfDicts, to_float
+from weeutil.weeutil import ListOfDicts, to_float, timestamp_to_string
 import weeutil.config
 
 log = logging.getLogger(__name__)
@@ -42,6 +42,8 @@ log = logging.getLogger(__name__)
 
 DEFAULTS_INI = """
 [Accumulator]
+    [[consBatteryVoltage]]
+        extractor = last
     [[dateTime]]
         adder = noop
     [[dayET]]
@@ -63,6 +65,8 @@ DEFAULTS_INI = """
     [[stormRain]]
         extractor = last
     [[totalRain]]
+        extractor = last
+    [[txBatteryStatus]]
         extractor = last
     [[usUnits]]
         adder = check_units
@@ -161,10 +165,11 @@ class ScalarStats(object):
         val: A scalar value
         ts:  The timestamp. """
 
-        #  If this is a string, try to convert it to a float.
-        if isinstance(val, (six.string_types, six.text_type)):
-            # Fail hard if unable to do the conversion:
+        # If necessary, convert to float. Be prepared to catch an exception if not possible.
+        try:
             val = to_float(val)
+        except ValueError:
+            val = None
 
         # Check for None and NaN:
         if val is not None and val == val:
@@ -181,10 +186,11 @@ class ScalarStats(object):
     def addSum(self, val, weight=1):
         """Add a scalar value to my running sum and count."""
 
-        #  If this is a string, try to convert it to a float.
-        if isinstance(val, (six.string_types, six.text_type)):
-            # Fail hard if unable to do the conversion:
+        # If necessary, convert to float. Be prepared to catch an exception if not possible.
+        try:
             val = to_float(val)
+        except ValueError:
+            val = None
 
         # Check for None and NaN:
         if val is not None and val == val:
@@ -265,13 +271,15 @@ class VecStats(object):
         """
         speed, dirN = val
 
-        #  If this is a string, try to convert it to a float.
-        if isinstance(speed, (six.string_types, six.text_type)):
-            # Fail hard if unable to do the conversion:
+        # If necessary, convert to float. Be prepared to catch an exception if not possible.
+        try:
             speed = to_float(speed)
-        if isinstance(dirN, (six.string_types, six.text_type)):
-            # Fail hard if unable to do the conversion:
+        except ValueError:
+            speed = None
+        try:
             dirN = to_float(dirN)
+        except ValueError:
+            dirN = None
 
         # Check for None and NaN:
         if speed is not None and speed == speed:
@@ -292,13 +300,15 @@ class VecStats(object):
         """
         speed, dirN = val
 
-        #  If this is a string, try to convert it to a float.
-        if isinstance(speed, (six.string_types, six.text_type)):
-            # Fail hard if unable to do the conversion:
+        # If necessary, convert to float. Be prepared to catch an exception if not possible.
+        try:
             speed = to_float(speed)
-        if isinstance(dirN, (six.string_types, six.text_type)):
-            # Fail hard if unable to do the conversion:
+        except ValueError:
+            speed = None
+        try:
             dirN = to_float(dirN)
+        except ValueError:
+            dirN = None
 
         # Check for None and NaN:
         if speed is not None and speed == speed:
@@ -426,7 +436,7 @@ class Accum(dict):
         # Check to see if the record is within my observation timespan 
         if not self.timespan.includesArchiveTime(record['dateTime']):
             raise OutOfSpan("Attempt to add out-of-interval record (%s) to timespan (%s)"
-                            % (record['dateTime'], self.timespan))
+                            % (timestamp_to_string(record['dateTime']), self.timespan))
 
         for obs_type in record:
             # Get the proper function ...
@@ -573,7 +583,7 @@ class Accum(dict):
             record['windGustDir'] = self[obs_type].max_dir
 
     def extract_sum(self, record, obs_type):
-        record[obs_type] = self[obs_type].sum
+        record[obs_type] = self[obs_type].sum if self[obs_type].count else None
 
     def extract_last(self, record, obs_type):
         record[obs_type] = self[obs_type].last

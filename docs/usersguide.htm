@@ -47,7 +47,7 @@
         <div class="logoref">
             <a href='https://weewx.com'> <img src='images/logo-weewx.png' class='logo' style="float:right"
                                              alt="weewx logo"/> </a><br/> <span class='version'>
-Version: 4.5
+Version: 4.9
     </span>
         </div>
         <div class="title">User's Guide to WeeWX</div>
@@ -118,9 +118,11 @@ Version: 4.5
 
         <h2>Time</h2>
 
-        <p> You should run a <a href="https://www.ntp.org/">NTP</a> daemon on your server to ensure that it is
-            synchronized with the correct time. Doing so will greatly reduce errors, especially if you send data to
-            services such as the Weather Underground.
+        <p>
+            You should run some sort of time synchronization daemon to ensure that your computer has the correct time.
+            Doing so will greatly reduce errors, especially if you send data to services such as the Weather
+            Underground. Systemd systems can use <a href="https://wiki.archlinux.org/title/systemd-timesyncd">systemd-timesyncd</a>,
+            other systems can use <a href="https://www.ntp.org/">NTP</a>.
         </p>
 
         <p>The time on some stations is automatically synchronized with the WeeWX server nominally every four hours. The
@@ -194,12 +196,10 @@ Version: 4.5
                 size, etc. You may have to follow directions given by your hardware manufacturer, or you may be able to
                 use the utility <a href="utilities.htm#wee_device_utility"><span class="code">wee_device</span>.</a>
             </li>
-            <li>Launch the <span class="code">weewxd</span> program. It can be run either as a <a
-                href="#Running_as_a_daemon">daemon</a>, or <a href="#Running_directly">directly from the command
-                line</a>.
+            <li>Launch the <span class="code">weewxd</span> program. It is run from the command line, either as a <a
+                href="#Running_as_a_daemon">daemon</a>, or <a href="#Running_directly">directly</a>.
             </li>
-            <li>Tune the installation. Typically this is done by changing settings in the <a href="#weewxconf"><span
-                class="code">weewx.conf</span></a> configuration file. For example, you might want to <a
+            <li>Tune the installation. Typically this is done by changing settings in the WeeWX configuration file. For example, you might want to <a
                 href="#station_registry">register your station</a>, so it shows up on a world-wide map of WeeWX
                 installations.
             </li>
@@ -224,10 +224,10 @@ Version: 4.5
 
         <p>
             Installation using <span class="code">setup.py</span> is the recommended method for those who plan to write
-            custom services and reports for WeeWX. It will put everything in a single directory, specified by the
-            parameter <span class='code'>home</span> in the <span class='code'>setup.cfg</span> file, making it easier
-            to modify WeeWX. This file is not used by the other installation methods. If the user installing WeeWX has
-            permission to write to the directory, root privileges will not be required to install, run, or modify WeeWX.
+            custom services and reports for WeeWX. It will put everything in a single directory, making it easier
+            to modify WeeWX.  If the user installing WeeWX has permission to write to the directory, root privileges
+            will not be required to install, run, or modify WeeWX.  However, root privileges might be required to
+            communicate with hardware.
         </p>
 
         <h2><a href='debian.htm'>Installing from DEB package</a></h2>
@@ -253,8 +253,7 @@ Version: 4.5
         <h2><a href='setup.htm'>Installing using the Python tool setup.py</a></h2>
 
         <p>For all other operating systems, follow the <a href='setup.htm'><span class="code">setup.py</span>
-            instructions</a>. This method can also be used on Debian-, Redhat-, and SUSE-based operating systems as
-            well, and may be a better choice if you intend to heavily customize WeeWX.
+            instructions</a>. This method can also be used on Debian-, Redhat-, and SUSE-based operating systems.
         </p>
 
         <h2 id="Where_to_find_things">Where to find things</h2>
@@ -458,14 +457,14 @@ Version: 4.5
                         <td class='tty'>/Users/Shared/weewx/docs/</td>
                     </tr>
                     <tr>
-                        <td>User directory</td>
-                        <td class="symcode"></td>
-                        <td class='tty'>/Users/Shared/weewx/bin/user</td>
-                    </tr>
-                    <tr>
                         <td>Examples</td>
                         <td class="symcode">EXAMPLE_ROOT</td>
                         <td class='tty'>/Users/Shared/weewx/examples/</td>
+                    </tr>
+                    <tr>
+                        <td>User directory</td>
+                        <td class="symcode"></td>
+                        <td class='tty'>/Users/Shared/weewx/bin/user</td>
                     </tr>
                     <tr>
                         <td>PID file</td>
@@ -583,14 +582,6 @@ Version: 4.5
             seconds for a Vantage station, or considerably longer for some other stations.
         </p>
 
-        <p>You can tell a running instance of WeeWX to reread its configuration file by sending it the <span
-            class="code">HUP</span> signal. First run <span class="code">ps</span> to find out the Process ID (PID)
-            number of the instance, then send it the <span class="code">HUP</span> signal:
-        </p>
-        <pre class="tty"><span class="cmd">ps -a</span>          # Note the PID of the weewxd process
-<span class="cmd">kill -HUP <em>pid</em></span>  # Send it a HUP signal</pre>
-        <p>Note that this <em>only</em> rereads the configuration file. It will not reload any code.</p>
-
         <h2 id="Running_as_a_daemon">Running as a daemon</h2>
 
         <p>For unattended operations it is best to have WeeWX run as a daemon, started automatically when the server is
@@ -674,17 +665,13 @@ Version: 4.5
         <pre class="tty cmd">sudo /etc/init.d/weewx start
 sudo /etc/init.d/weewx stop
 sudo /etc/init.d/weewx restart</pre>
-        <p>By default, the scripts are designed to have WeeWX run at run levels 2, 3, 4 and 5. Incidentally, a nice tool
+        <p>
+            By default, the scripts are designed to have WeeWX run at run levels 2, 3, 4 and 5. Incidentally, a nice tool
             for setting run levels with Debian (Ubuntu, Mint) systems is <a href="http://sysv-rc-conf.sourceforge.net/">sysv-rc-conf</a>.
             It uses a curses interface to allow you to change easily which run level any of your daemons runs at. There
             is a similar tool on SuSE. From the start menu run the YAST Control Center, then look for Systems Services
             (Runlevel). Pick &quot;Expert&quot; mode to see the run levels.
         </p>
-
-        <p>You can also tell WeeWX to reread its configuration file without stopping by using the &#39;reload&#39;
-            option:
-        </p>
-        <pre class="tty cmd">sudo /etc/init.d/weewx reload </pre>
 
 
         <h1 id="monitoring">Monitoring WeeWX</h1>
@@ -710,57 +697,9 @@ sudo /etc/init.d/weewx restart</pre>
 
         <h2>If the server is on the same machine</h2>
 
-        <p>The reports generated by WeeWX can be served by a web server running on the same computer as WeeWX. These are
-            instructions for making WeeWX reports available via the Apache web server. The process is similar for other
-            web servers such as <span class='code'>nginx</span> or <span class='code'>lighthttpd</span>.
-        </p>
-
-        <ol>
-            <li>
-                <p>Install the Apache web server on the computer on which WeeWX is running. For example, on Debian
-                    systems:
-                </p>
-
-                <p class='tty cmd'>sudo apt-get install apache2</p>
-            </li>
-
-            <li>
-                <p>Configure Apache to see the WeeWX reports.</p>
-                <ul>
-                    <li>
-                        <p>If WeeWX was installed from DEB or RPM package, no configuration should be necessary since
-                            the reports are placed in the directory <span class='code'>/var/www/html/weewx</span>, which
-                            is in the Apache DocumentRoot directory <span class='code'>/var/www/html</span></p>
-                    </li>
-                    <li>
-                        <p>If WeeWX was installed using <span class='code'>setup.py</span>, you must tell Apache where
-                            to find the WeeWX reports. One method is to install an Apache configuration snippet:
-                        </p>
-
-                        <pre class='tty cmd'>sudo cp util/apache/conf.d/weewx.conf /etc/apache2/conf.d</pre>
-
-                        <p>Be sure that the path in the Apache configuration snippet matches the <span class='code'>HTML_ROOT</span>
-                            defined in the WeeWX configuration file. For example, the path for a default <span
-                                class='code'>setup.py</span> installation would look like this:
-                        </p>
-
-                        <pre class='tty'>Alias /weewx <span class="highlight">/home/weewx/public_html</span>
-&lt;Directory <span class="highlight">/home/weewx/public_html</span>&gt;
-    Options FollowSymlinks
-    AllowOverride None
-&lt;/Directory&gt;</pre>
-
-                        <p>Restart Apache to make the changes happen:</p>
-                        <pre class='tty cmd'>sudo /etc/init.d/apache2 restart</pre>
-                    </li>
-                </ul>
-            </li>
-
-            <li>
-                <p>Open the WeeWX URL in a web browser:</p>
-                <p class='tty'>http://localhost/weewx</p>
-            </li>
-        </ol>
+        <p>The reports generated by WeeWX can be served by a web server running on the same machine as WeeWX. See the
+            wiki article <a href="https://github.com/weewx/weewx/wiki/Configure-a-web-server-(Apache,-NGINX-or-lighttpd)">
+            <em>Configure a web server (Apache, NGINX or lighttpd)</em></a> for how to do this.
 
         <h2>If the server is on a different machine</h2>
 
@@ -1031,70 +970,6 @@ sudo apt install python3-mysqldb</pre>
 mysql&gt; <span class="cmd">GRANT select, update, create, delete, insert, alter, drop ON weewx.* TO weewx@localhost;</span></pre>
             </li>
         </ol>
-
-
-        <h1 id="wview_compatibility">Compatibility with <span class="code">wview</span></h1>
-
-        <h2>sqlite3</h2>
-
-        <p>
-            The SQLite archive database used by the old Linux weather software program <em>wview</em> (usually named
-            <span class="code">wview-archive.sdb</span>) is completely compatible with WeeWX and can be used without
-            change.
-        </p>
-
-        <p>
-            All you need do is copy the file over and change its name. Assuming that the
-            <em>wview</em> data are in file <span
-            class='code'>/var/wview/archive/wview-archive.sdb</span>,
-        </p>
-
-        <pre class='tty cmd'>sudo /etc/init.d/weewx stop
-cd <span class="symcode">SQLITE_ROOT</span>
-mv weewx.sdb weewx.sdb.bak
-cp /var/wview/archive/wview-archive.sdb weewx.sdb
-sudo /etc/init.d/weewx start</pre>
-
-        <p>where the variable <span class="symcode">SQLITE_ROOT</span> is the directory where
-        your WeeWX SQLite database is located (usually <span class="code">/home/weewx/archive</span>
-        or <span class="code">/var/lib/weewx</span>).</p>
-
-        <p>
-            Internally, within the <span class="code">weewx.sdb</span> database, WeeWX also
-            maintains a "daily summary" of all the statistics. This is done for performance
-            reasons. The daily summary will be built automatically on the first startup. This could
-            take a few minutes if the <em>wview</em> archive contains more than a month or two of
-            data.
-        </p>
-
-        <p>
-            On my modest 500 MHz <a href="https://www.fit-pc.com/web/">fit-PC Slim</a> with 512 MB of memory it took a
-            little over 4 minutes for a year and a half (25 MB) of data.
-        </p>
-
-        <h2>MySQL</h2>
-
-        <p>The MySQL archive database used by <em>wview</em> is "almost" compatible with WeeWX. The one difference is that in
-            <em>wview</em>, the column <span class="code">interval</span> is named <span class="code">arcInt</span> (presumably
-            because <span class="code">interval</span> is a keyword in MySQL, although it can still be used by
-            surrounding the word with backquotes).
-        </p>
-
-        <p>To change the column name to what WeeWX uses, namely <span class="code">interval</span>, use the utility
-            <span class="code">mysql</span> and issue the command:
-        </p>
-        <pre class="tty">mysql> <span class="cmd">ALTER TABLE <em>your-wview-archive-name</em> CHANGE arcInt `interval` INTEGER NOT NULL;</span> </pre>
-        <p>where <span class="code"><em>your-wview-archive-name</em></span> is the name of your <em>wview</em> archive database.
-            Note that the word <span class="code">
-        interval</span> is surrounded by backquotes.
-        </p>
-
-        <p>Then in the <span class="code">[Databases]</span> section of <span class="code">weewx.conf</span>, replace
-            the name of the database with whatever your installation of <em>wview</em> used <span class="code"><em>your-wview-archive-name</em></span>:
-        </p>
-        <pre class="tty">[[archive_mysql]]
-    database_type = MySQL
-    database_name = <span class="highlight"><em>your-wview-archive-name</em></span></pre>
 
 
         <h1 id="weewxconf">The configuration file <span class="code">weewx.conf</span></h1>
@@ -1792,7 +1667,7 @@ longitude = -77.0366</pre>
             or <a href="http://www.wxqa.com/">CWOP</a>.
         </p>
 
-        <p class="config_important">log_success</p>
+        <p class="config_option">log_success</p>
         <p>
             If you set a value for <span class="code">log_success</span> here, it will override the value set at the <a
             href="#global_log_success">top-level</a> and will apply only to RESTful services. In addition, <span
@@ -1800,7 +1675,7 @@ longitude = -77.0366</pre>
             subsection (<i>e.g.,</i> <span class="code">[[CWOP]]</span>).
         </p>
 
-        <p class="config_important">log_failure</p>
+        <p class="config_option">log_failure</p>
         <p>
             If you set a value for <span class="code">log_failure</span> here, it will override the value set at the <a
             href="#global_log_failure">top-level</a> and will apply only to RESTful services. In addition, <span
@@ -1811,28 +1686,28 @@ longitude = -77.0366</pre>
         <h3 class="config_section" id="station_registry">[[StationRegistry]]</h3>
 
         <p> A registry of WeeWX weather stations is maintained at <span class="code">weewx.com</span>. Stations are
-            displayed on a map and a list at <a href="http://weewx.com/stations.html">http://weewx.com/stations.html</a>
+            displayed on a map and a list at <a href="https://weewx.com/stations.html">https://weewx.com/stations.html</a>
         </p>
 
-        <p>How does the registry work? Individual weather stations periodically contact the registry. Each station
-            provides a URL to identify itself, plus other information such as the station type and WeeWX version. No
-            personal information, nor any meteorological data, is sent.
+        <p>
+            How does the registry work? Individual weather stations periodically contact the registry. Each station
+            provides a unique URL to identify itself, plus other information such as the station type and WeeWX version.
+            No personal information, nor any meteorological data, is sent.
         </p>
 
         <p>To add your station to this list, you must do two things:</p>
         <ol>
-            <li>Enable the StationRegistry in <span class="code">weewx.conf</span> by setting the option <span
-                class="code">register_this_station</span> to <span class="code">True</span>. Your station will contact
-                the registry once per week. If your station does not contact the registry for about a month, it will be
+            <li>
+                Enable the station registry by setting option <span class="code">register_this_station</span> to
+                <span class="code">True</span> in <span class="code">weewx.conf</span> . Your station will contact the
+                registry once per week. If your station does not contact the registry for about a month, it will be
                 removed from the list.
             </li>
-            <li>Provide a <span class="code">station_url</span>, either in section <a href="#station_url"><span
-                class='code'>[Station]</span></a>, or in the <span class='code'>[[StationRegistry]]</span> section.
+            <li>Provide a value for option <span class="code">station_url</span> in section <a href="#station_url"><span
+                class='code'>[Station]</span></a>. This value must be unique, so choose it carefully.
             </li>
         </ol>
-        <p>The <span class='code'>station_url</span> is used to uniquely identify each station, so choose it carefully
-            before you set <span class='code'>register_this_station</span> to <span class='code'>True</span>.
-        </p>
+
         <pre class="tty">[StdRestful]
     [[StationRegistry]]
         register_this_station = True</pre>
@@ -1856,11 +1731,16 @@ longitude = -77.0366</pre>
 
         <p class='config_option'>log_success</p>
 
-        <p>In case of success, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to the station registry.
+        </p>
 
         <p class='config_option'>log_failure</p>
 
-        <p>In case of failure, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to the station registry.
+        </p>
+
 
         <h3 class="config_section">[[AWEKAS]]</h3>
 
@@ -1894,11 +1774,15 @@ longitude = -77.0366</pre>
 
         <p class='config_option'>log_success</p>
 
-        <p>In case of success, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for AWEKAS.
+        </p>
 
         <p class='config_option'>log_failure</p>
 
-        <p>In case of failure, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for AWEKAS.
+        </p>
 
         <p class='config_option'>retry_login</p>
 
@@ -1967,11 +1851,16 @@ longitude = -77.0366</pre>
 
         <p class='config_option'>log_success</p>
 
-        <p>In case of success, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for CWOP.
+        </p>
 
         <p class='config_option'>log_failure</p>
 
-        <p>In case of failure, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for CWOP.
+        </p>
+
 
         <h3 class="config_section">[[PWSweather]]</h3>
 
@@ -2002,11 +1891,15 @@ longitude = -77.0366</pre>
 
         <p class='config_option'>log_success</p>
 
-        <p>In case of success, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for PWSweather.
+        </p>
 
         <p class='config_option'>log_failure</p>
 
-        <p>In case of failure, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for PWSweather.
+        </p>
 
         <p class='config_option'>retry_login</p>
 
@@ -2054,11 +1947,15 @@ longitude = -77.0366</pre>
 
         <p class='config_option'>log_success</p>
 
-        <p>In case of success, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for WOW.
+        </p>
 
         <p class='config_option'>log_failure</p>
 
-        <p>In case of failure, make a note in the system log. The default is <span class='code'>True</span>.</p>
+        <p>
+            If you set a value here, it will apply only to logging for WOW.
+        </p>
 
         <p class='config_option'>retry_login</p>
 
@@ -2142,15 +2039,14 @@ longitude = -77.0366</pre>
         </p>
 
         <p class='config_option'>log_success</p>
-
-        <p>In case of success, make a note in the system log. The default is <span class='code'>False</span> for
-            Rapidfire mode, <span class='code'>True</span> for PWS mode.
+        <p>
+            If you set a value here, it will apply only to logging for the Weather Underground.
         </p>
 
         <p class='config_option'>log_failure</p>
 
-        <p>In case of failure, make a note in the system log. The default is <span class='code'>False</span> for
-            Rapidfire mode, <span class='code'>True</span> for PWS mode.
+        <p>
+            If you set a value here, it will apply only to logging for the Weather Underground.
         </p>
 
         <p class='config_option'>retry_login</p>
@@ -2184,7 +2080,7 @@ longitude = -77.0366</pre>
 
         <h2 class="config_section" id="Reports">[StdReport]</h2>
 
-        <p>This section is for configuring the <span class="code">StdReport</span> service, which controls which reports
+        <p>This section is for configuring the <span class="code">StdReport</span> service, which controls what reports
             are to be generated. While it can be highly customized for your individual situation, this documentation
             describes the section as shipped in the standard distribution.
         </p>
@@ -2249,6 +2145,22 @@ longitude = -77.0366</pre>
             class="symcode">WEEWX_ROOT</span>. Generated files and images will be put here.
         </p>
 
+        <p class="config_option">log_success</p>
+        <p>
+            If you set a value for <span class="code">log_success</span> here, it will override the value set at the <a
+            href="#global_log_success">top-level</a> and will apply only to reporting. In addition, <span
+            class="code">log_success</span> can be set for individual reports by putting them under the appropriate
+            subsection (<i>e.g.,</i> <span class="code">[[Seasons]]</span>).
+        </p>
+
+        <p class="config_option">log_failure</p>
+        <p>
+            If you set a value for <span class="code">log_failure</span> here, it will override the value set at the <a
+            href="#global_log_failure">top-level</a> and will apply only to reporting. In addition, <span
+            class="code">log_failure</span> can be set for individual reports by putting them under the appropriate
+            subsection (<i>e.g.,</i> <span class="code">[[Seasons]]</span>).
+        </p>
+
         <p class="config_option">data_binding</p>
 
         <p>
@@ -2272,22 +2184,44 @@ longitude = -77.0366</pre>
           [[StandardReport]]</h3>
 
         <p>
-            These are the four reports that actually generate HTML files and plots. They all ship in the standard WeeWX
-            distribution. They all use US Customary units by default, but this can be changed by editing section <a
-            href="#Section_Defaults"><span class="code">[Defaults]</span></a>.
+            These are the four reports that are included in the standard distribution of WeeWX, and which actually
+            generate HTML files and plots. They all use US Customary units by default (but this can be changed by
+            setting the option <span class="code">unit_system</span>).
         </p>
+
         <p>They all have the following options in common.</p>
 
-        <p class="config_option">skin</p>
+        <p class="config_important" id="lang-code">lang</p>
+
         <p>
-            Where to find the skin. This should be a subdirectory under <span class="symcode">SKIN_ROOT</span>. Inside
-            the directory should be any templates used by the skin and a skin configuration file, <span class="code">skin.conf</span>.
+            Which language the skin should be localized in. The value is a two-character
+            language code as defined in <a href="https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes"
+            target="_blank">ISO&nbsp;639-1</a>. This option only works with skins that have been internationalized. All
+            skins that ship with WeeWX have been internationalized, but only a handful of languages are included. To
+            see which language a skin supports, look in the subdirectory <span class="code">lang</span> in the skin's
+            directory. For example, if you see a file <span class="code">fr.conf</span>, then the skin can be localized
+            in French.
+        </p>
+
+        <p id="option-unit-system"><span class="config_important">unit_system</span></p>
+        <p>
+            Which unit system to use with the skin. Choices are <span class="code">US</span>, <span
+            class="code">METRIC</span>, or <span class="code">METRICWX</span>. See the <a
+            href="customizing.htm#units"><em>Appendix Units</em></a> in the Customizing Guide for definitions of these
+            unit systems. Individual units can be overridden. See "<a href="customizing.htm#how_to_change_units">How to
+            change units</a>" in the "<a href="customizing.htm">Customization Guide</a>" for more details.
         </p>
 
         <p class="config_important">enable</p>
         <p>
             Set to <span class="code">true</span> to enable the processing of this skin. Set to <span
             class="code">false</span> to disable. If this option is missing, <span class="code">True</span> is assumed.
+        </p>
+
+        <p class="config_option">skin</p>
+        <p>
+            Where to find the skin. This should be a subdirectory under <span class="symcode">SKIN_ROOT</span>. Inside
+            the directory should be any templates used by the skin and a skin configuration file, <span class="code">skin.conf</span>.
         </p>
 
         <p class="config_option">HTML_ROOT</p>
@@ -2371,6 +2305,24 @@ longitude = -77.0366</pre>
 
         <p>WeeWX will try up to this many times to FTP a file up to your server before giving up. Default is 3.</p>
 
+        <p class="config_option" id="ftp_encoding">ftp_encoding</p>
+        <p>
+            The vast majority of FTP servers send their responses back using UTF-8 encoding. However, there are a few
+            oddballs that respond using Latin-1. This option allows you to specify an alternative encoding.
+        </p>
+
+        <p class="config_option" id="ciphers">ciphers</p>
+        <p>
+            Some clients require a higher cipher level than the FTP server is capable of delivering. The symptom
+            is an error something like
+            <span class="code">ssl.SSLError: [SSL: DH_KEY_TOO_SMALL] dh key too small (_ssl.c:997)</span>. This option
+            allows you to specify a custom level. For example, in this case, you might want to specify:
+        </p>
+        <pre class="tty">ciphers='DEFAULT@SECLEVEL=1'</pre>
+        <p>
+            However, if possible, you are always better off upgrading the FTP server.
+        </p>
+
         <h3 class="config_section" id="config_RSYNC">[[RSYNC]]</h3>
 
         <p>While this &quot;report&quot; does not actually generate anything, it uses the report machinery to upload
@@ -2422,6 +2374,23 @@ longitude = -77.0366</pre>
             deleted on the remote server. Valid values are 1 to enable and 0 to disable. Required. Default is 0.
         </p>
 
+        <h3 class="config_section" id="Section_Defaults">[[Defaults]]</h3>
+        
+        <p>
+          This section defines default values for all reports. You can set:
+          <ul>
+            <li>The unit system to be used;</li>
+            <li>Overrides for individual units;</li>
+            <li>Which language to be used;</li>
+            <li>Number and time formats;</li>
+            <li>Labels to be used;</li>
+            <li>Calculation options for some derived values.</li>
+          </ul>
+          See the <a href="customizing.htm">Customization Guide</a>
+          for more details.
+        </p>
+
+        
         <h2 class="config_section" id="StdConvert">[StdConvert]</h2>
 
         <p>This section is for configuring the <span class="code">StdConvert</span> service. This service acts as a
@@ -2616,6 +2585,21 @@ longitude = -77.0366</pre>
             (XTypes)</em></a> for how to do this.
         </p>
 
+        <p class="config_option">data_binding</p>
+
+        <p>
+            The data source to be used for historical data when calculating derived quantities. It should match a
+            binding given in section <a href="#DataBindings"><span class="code">[DataBindings]</span></a> below.
+            Optional. Default is <span class="code">wx_binding</span>.
+        </p>
+
+        <p class="note">
+            <b>Note:</b><br/>
+            The data binding used by the <span class="code">StdWXCalculate</span> service should normally match the data
+            binding used by the <span class="code">StdArchive</span> service. User's who use custom or additional data
+            bindings should take care to ensure the correct data bindings are used by both services.
+        </p>
+
         <h3 class="config_section">[[Calculations]]</h3>
 
         <p>
@@ -2729,7 +2713,10 @@ longitude = -77.0366</pre>
 
         <h4 class="config_section">[[[ET]]]</h4>
         <p>
-            This sub-section contains several options used when calculating ET (evapotranspiration)
+            This subsection contains several options used when calculating ET (evapotranspiration).
+            See the document <a href="https://edis.ifas.ufl.edu/pdf/AE/AE45900.pdf"><em>Step by Step Calculation of the
+            Penman-Monteith Evapotranspiration"</em></a> for the definitions of <span class="code">cn</span>
+            and <span class="code">cd</span>.
         </p>
 
         <p class="config_option">et_period</p>
@@ -2739,6 +2726,21 @@ longitude = -77.0366</pre>
         <p>
             The option <span class="code">wind_height</span> is used to normalize where wind speed is measured for
             calculating evapotranspiration. It should be set to the height of your anemometer in meters. Default is 2.0.
+        </p>
+
+        <p class="config_option">albedo</p>
+        <p>
+            The albedo to be used in the calculations. Default is 0.23.
+        </p>
+
+        <p class="config_option">cn</p>
+        <p>
+            The numerator constant for the reference crop type and time step. Default is 37.
+        </p>
+
+        <p class="config_option">cd</p>
+        <p>
+            The denominator constant for the reference crop type and time step. Default is 0.34.
         </p>
 
         <h4 class="config_section">[[[heatindex]]]</h4>
@@ -2881,22 +2883,22 @@ longitude = -77.0366</pre>
                 class="code">True</span>.
         </p>
 
-        <p class="config_option">data_binding</p>
-
-        <p>The data binding to be used to store the data. This should match one of the bindings in the <span
-            class="code">[DataBindings]</span> section, below. Optional. Default is <span class="code">wx_binding</span>.
-        </p>
-
         <p class="config_option">log_success</p>
         <p>
-            Set to <span class="code">True</span> to log successful insertions into the database. Otherwise,
-            <span class="code">False</span>. Default is <span class="code">True</span>.
+            If you set a value for <span class="code">log_success</span> here, it will override the value set at the <a
+            href="#global_log_success">top-level</a> and will apply only to archiving operations.
         </p>
 
         <p class="config_option">log_failure</p>
         <p>
-            Set to <span class="code">True</span> to log unsuccessful insertions into the database. Otherwise,
-            <span class="code">False</span>. Default is <span class="code">True</span>.
+            If you set a value for <span class="code">log_failure</span> here, it will override the value set at the <a
+            href="#global_log_failure">top-level</a> and will apply only to archiving operations.
+        </p>
+
+        <p class="config_option">data_binding</p>
+
+        <p>The data binding to be used to store the data. This should match one of the bindings in the <span
+            class="code">[DataBindings]</span> section, below. Optional. Default is <span class="code">wx_binding</span>.
         </p>
 
         <h2 class="config_section">[StdTimeSynch]</h2>
@@ -3079,12 +3081,6 @@ longitude = -77.0366</pre>
 
         <p>The type of MySQL database storage engine to be used. This should not be changed without a good reason.
             Default is <span class="code">INNODB</span>.
-        </p>
-
-        <h2 class="config_section" id="Section_Defaults">[Defaults]</h2>
-        <p>
-            This section covers a suite of default values, which control things such as which unit system should be
-            used in reports, what label to be used for an observation type, and how it should be formatted.
         </p>
 
         <h2 class="config_section">[Engine]</h2>
@@ -3638,8 +3634,8 @@ May 14 13:35:23 web weewx[5633]:         ****      obj.start()
 May 14 13:35:23 web weewx[5633]:         ****    File "/usr/share/weewx/weewx/reportengine.py", line 170, in start
 May 14 13:35:23 web weewx[5633]:         ****      self.run()
 May 14 13:35:23 web weewx[5633]:         ****    File "/usr/share/weewx/weewx/imagegenerator.py", line 36, in run
-May 14 13:35:23 web weewx[5633]:         ****      self.genImages(self.gen_ts)
-May 14 13:35:23 web weewx[5633]:         ****    File "/usr/share/weewx/weewx/imagegenerator.py", line 220, in genImages
+May 14 13:35:23 web weewx[5633]:         ****      self.gen_images(self.gen_ts)
+May 14 13:35:23 web weewx[5633]:         ****    File "/usr/share/weewx/weewx/imagegenerator.py", line 220, in gen_images
 May 14 13:35:23 web weewx[5633]:         ****      image = plot.render()
 May 14 13:35:23 web weewx[5633]:         ****    File "/usr/share/weewx/weeplot/genplot.py", line 175, in render
 May 14 13:35:23 web weewx[5633]:         ****      self._renderTopBand(draw)

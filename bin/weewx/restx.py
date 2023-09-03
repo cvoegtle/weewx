@@ -1,5 +1,5 @@
 #
-#    Copyright (c) 2009-2020 Tom Keffer <tkeffer@gmail.com>
+#    Copyright (c) 2009-2022 Tom Keffer <tkeffer@gmail.com>
 #
 #    See the file LICENSE.txt for your full rights.
 #
@@ -1942,18 +1942,18 @@ AWEKAS = StdAWEKAS
 
 class AWEKASThread(RESTThread):
     _SERVER_URL = 'http://data.awekas.at/eingabe_pruefung.php'
-    _FORMATS = {'barometer'  : '%.3f',
-                'outTemp'    : '%.1f',
+    _FORMATS = {'barometer': '%.3f',
+                'outTemp': '%.1f',
                 'outHumidity': '%.0f',
-                'windSpeed'  : '%.1f',
-                'windDir'    : '%.0f',
-                'windGust'   : '%.1f',
-                'dewpoint'   : '%.1f',
-                'hourRain'   : '%.2f',
-                'dayRain'    : '%.2f',
-                'radiation'  : '%.2f',
-                'UV'         : '%.2f',
-                'rainRate'   : '%.2f'}
+                'windSpeed': '%.1f',
+                'windDir': '%.0f',
+                'windGust': '%.1f',
+                'dewpoint': '%.1f',
+                'hourRain': '%.2f',
+                'dayRain': '%.2f',
+                'radiation': '%.2f',
+                'UV': '%.2f',
+                'rainRate': '%.2f'}
 
     def __init__(self, q, username, password, latitude, longitude,
                  manager_dict,

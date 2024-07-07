@@ -1,94 +1,74 @@
 # spec for building a weewx rpm for redhat or suse systems
 # License: GPLv3
-# Author: (c) 2013-2020 Matthew Wall
+# Author: (c) 2013-2024 Matthew Wall
 
 # the operating system release number is specified externaly, so that we can
 # do cross-release (but not cross-platform) packaging.
-%define os_target OSREL
-
-# suse 12: python2
-%if 0%{?suse_version} && "%{os_target}" == "12"
-%define relos .suse12
-%define platform suse
-%define initdir /etc/systemd/system
-%define deps python , python-configobj , python-cheetah , python-imaging , python-pyserial, python-usb
-%define python python
-%define html_root /srv/www/htdocs/weewx
-%endif
+%global os_target OSREL
+%global relnum RPMREVISION
+%global weewx_version WEEWX_VERSION
 
 # suse 15: python3
 %if 0%{?suse_version} && "%{os_target}" == "15"
+%define app_group Productivity/Scientific/Other
 %define relos .suse15
 %define platform suse
-%define initdir /etc/systemd/system
-%define deps python3, python3-setuptools, python3-configobj, python3-Cheetah3, python3-Pillow, python3-pyserial, python3-usb
+%define deps python3, python3-importlib_resources, python3-configobj, python3-Cheetah3, python3-Pillow, python3-pyserial, python3-usb, python3-ephem
 %define python python3
-%define html_root /var/www/html/weewx
 %endif
 
-# suse linux enterprise server
-%if 0%{?sles_version}
-%define relos .sles
-%define platform suse
-%define initdir /etc/systemd/system
-#define initdir /etc/init.d
-%define deps python , python-configobj , python-cheetah , python-imaging , python-pyserial, python-usb
-%define html_root /srv/www/htdocs/weewx
-%define python python
-%endif
-
-# rh7: python2 on redhat, fedora, centos
-%if "%{_vendor}" == "redhat" && "%{os_target}" == "7"
-%define relos .el7
+# rh: python3 on redhat, fedora, centos, rocky
+%if "%{_vendor}" == "redhat"
+%define app_group Applications/Science
 %define platform redhat
-%define initdir %{_initrddir}
-# must install pyserial and pyusb using easy_install or pip
-%define deps python, python-setuptools, python-configobj, python-cheetah, python-imaging
-%define python python2
-%define html_root /var/www/html/weewx
-# Disable Fedora's shebang mangling script,
-# which errors out on any file with versionless `python` in its shebang
-# See: https://github.com/atom/atom/issues/21937
+# disable shebang mangling. see https://github.com/atom/atom/issues/21937
 %undefine __brp_mangle_shebangs
-%endif
-
-# rh8: python3 on redhat, fedora, centos
-%if "%{_vendor}" == "redhat" && "%{os_target}" == "8"
+%if "%{os_target}" == "8"
 %define relos .el8
-%define platform redhat
-%define initdir %{_initrddir}
-# must install cheetah from epel-release or using pip3
-%define deps python3, python3-setuptools, python3-configobj, python3-pillow, python3-pyserial, python3-pyusb
+# rh8 ships with python 3.6, which has pre-built modules required by weewx.
+# weewx also requires the importlib.resource module from python 3.7, which is
+# backported to python 3.6.  python 3.8, python 3.9, and python 3.11 are also
+# available on rh8, but none of the modules required by weewx are available for
+# those python (as of nov2023).
+%define deps python3, python3-importlib-resources, python3-configobj, python3-cheetah, python3-pillow, python3-pyserial, python3-pyusb, python3-ephem
 %define python python3
-%define html_root /var/www/html/weewx
-# Disable Fedora's shebang mangling script,
-# which errors out on any file with versionless `python` in its shebang
-# See: https://github.com/atom/atom/issues/21937
-%undefine __brp_mangle_shebangs
+%endif
+%if "%{os_target}" == "9"
+%define relos .el9
+# rh9 ships with python 3.9, which has pre-built modules required by weewx.
+# python3-cheetah, python3-pillow are in epel
+# ephem is not available for redhat9
+%define deps python3, python3-configobj, python3-cheetah, python3-pillow, python3-pyserial, python3-pyusb
+%define python python3
+%endif
 %endif
 
-
-%global relnum RPMREVISION
 %global release %{relnum}%{?relos:%{relos}}
 
-%global dst_bin_dir  %{_datadir}/%{name}
-%global dst_doc_dir  %{_defaultdocdir}/%{name}-%{version}
-%global dst_cfg_dir  %{_sysconfdir}/%{name}
+%global dst_code_dir %{_datadir}/weewx
+%global dst_cfg_dir  %{_sysconfdir}/weewx
+%global dst_user_dir %{dst_cfg_dir}/bin/user
+%global dst_doc_dir  %{_datadir}/weewx-doc
 %global cfg_file     %{dst_cfg_dir}/weewx.conf
-%global dst_user_dir %{dst_bin_dir}/user
+%global systemd_dir  %{_unitdir}
+%global udev_dir     %{_udevrulesdir}
+%global sqlite_root  /var/lib/weewx
+%global html_root    /var/www/html/weewx
 
-%define entry_points weewxd wee_config wee_database wee_debug wee_device wee_extension wee_import wee_reports wunderfixer
+%define entry_points weewxd weectl
+%define cfgapp %{python} /usr/share/weewx/weectl.py
 
 Summary: weather software
 Name: weewx
-Version: WEEWX_VERSION
+Version: %{weewx_version}
 Release: %{release}
-Group: Applications/Science
+Group: %{app_group}
 Source: %{name}-%{version}.tar.gz
-URL: http://www.weewx.com
+URL: https://www.weewx.com
 License: GPLv3
 AutoReqProv: no
 Requires: %{deps}
+Requires(pre): /usr/bin/getent, /usr/sbin/groupadd, /usr/sbin/useradd
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
 BuildArch: noarch
 
@@ -97,146 +77,433 @@ weewx interacts with a weather station to produce graphs, reports, and HTML
 pages. weewx can upload data to weather services such as WeatherUnderground,
 PWSweather.com, or CWOP.
 
+# define some macros for use in the scriptlets
+
+# if there is already a database directory, then use ownership of that to
+# determine what user/group we should use for permissions and running.
+# otherwise, use 'weewx' for user and group.
+%define weewx_get_user_info \
+WEEWX_HOME="${WEEWX_HOME:-/var/lib/weewx}" \
+WEEWX_USER="${WEEWX_USER:-weewx}" \
+WEEWX_GROUP="${WEEWX_GROUP:-weewx}" \
+if [ -d %{sqlite_root} ]; then \
+    TMP_USER=$(stat -c "%%U" %{sqlite_root}) \
+    if [ "$TMP_USER" != "root" -a "$TMP_USER" != "weewx" -a "$TMP_USER" != "UNKNOWN" ]; then \
+        WEEWX_USER=$TMP_USER \
+        WEEWX_GROUP=$(stat -c "%%G" %{sqlite_root}) \
+    fi \
+fi
+
 %prep
+
 %setup -q
 
 %build
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}%{_bindir}
-mkdir -p %{buildroot}%{dst_bin_dir}
-mkdir -p %{buildroot}%{dst_doc_dir}
+mkdir -p %{buildroot}%{dst_code_dir}
 mkdir -p %{buildroot}%{dst_cfg_dir}
-mkdir -p %{buildroot}%{initdir}
-mkdir -p %{buildroot}/etc/default
+mkdir -p %{buildroot}%{dst_doc_dir}
+mkdir -p %{buildroot}%{_bindir}
 
-# copy files from the source tree
-cp -r bin/* %{buildroot}%{dst_bin_dir}
-cp -r docs/* %{buildroot}%{dst_doc_dir}
-cp -r examples %{buildroot}%{dst_doc_dir}
-cp -r skins %{buildroot}%{dst_cfg_dir}
-cp -r util/apache %{buildroot}%{dst_cfg_dir}
-cp -r util/import %{buildroot}%{dst_cfg_dir}
-cp -r util/logrotate.d %{buildroot}%{dst_cfg_dir}
-cp -r util/logwatch %{buildroot}%{dst_cfg_dir}
-cp -r util/rsyslog.d %{buildroot}%{dst_cfg_dir}
-cp -r util/udev %{buildroot}%{dst_cfg_dir}
+# rpm wants copyright and license even if no docs
+cp docs_src/copyright.md %{buildroot}%{dst_doc_dir}/copyright
+cp LICENSE.txt %{buildroot}%{dst_doc_dir}/license
 
-# patch paths in files we care about
-cat weewx.conf | sed \
- -e 's%^WEEWX_ROOT =.*%WEEWX_ROOT = /%' \
- -e 's%SKIN_ROOT =.*%SKIN_ROOT = /etc/weewx/skins%' \
+# copy the weewx code
+cp -r src/* %{buildroot}%{dst_code_dir}
+
+# copy the ancillary files to the correct location
+cp -r src/weewx_data/examples %{buildroot}%{dst_cfg_dir}
+cp -r src/weewx_data/util/import %{buildroot}%{dst_cfg_dir}
+cp -r src/weewx_data/util/logwatch %{buildroot}%{dst_cfg_dir}
+cp -r src/weewx_data/util/rsyslog.d %{buildroot}%{dst_cfg_dir}
+cp -r src/weewx_data/util/logrotate.d %{buildroot}%{dst_cfg_dir}
+mkdir %{buildroot}%{dst_cfg_dir}/systemd
+cp pkg/etc/systemd/system/weewx.service %{buildroot}%{dst_cfg_dir}/systemd
+cp pkg/etc/systemd/system/weewx@.service %{buildroot}%{dst_cfg_dir}/systemd
+mkdir %{buildroot}%{dst_cfg_dir}/udev
+cp pkg/etc/udev/rules.d/weewx.rules %{buildroot}%{dst_cfg_dir}/udev
+
+# create the weewx configuration
+sed \
  -e 's:HTML_ROOT = public_html:HTML_ROOT = %{html_root}:' \
- -e 's%SQLITE_ROOT = .*%SQLITE_ROOT = /var/lib/weewx%' \
- > %{buildroot}%{dst_cfg_dir}/weewx.conf
-%if "%{initdir}" == "/etc/systemd/system"
-cat util/systemd/weewx.service | sed \
- -e 's%ExecStart=.*%ExecStart=/usr/bin/weewxd /etc/weewx/weewx.conf%' \
- > %{buildroot}%{initdir}/weewx.service
-%else
-cp util/init.d/weewx.%{platform} %{buildroot}%{initdir}/weewx
-%endif
+ -e 's:SQLITE_ROOT = .*:SQLITE_ROOT = %{sqlite_root}:' \
+ src/weewx_data/weewx.conf > %{buildroot}%{dst_cfg_dir}/weewx.conf
 
 # make a copy of the generic configuration file
-cp %{buildroot}%{dst_cfg_dir}/weewx.conf %{buildroot}%{dst_cfg_dir}/weewx.conf.dist
+cp %{buildroot}%{dst_cfg_dir}/weewx.conf %{buildroot}%{dst_cfg_dir}/weewx.conf-%{weewx_version}
 
 # create the entry points
 for f in %{entry_points}; do \
-  cp util/scripts/$f %{buildroot}%{_bindir}/$f; \
+    sed \
+ -e 's:WEEWX_BINDIR=.*:WEEWX_BINDIR=/usr/share/weewx:' \
+ -e 's:WEEWX_PYTHON=.*:WEEWX_PYTHON=%{python}:' \
+ bin/$f > %{buildroot}%{_bindir}/$f; \
 done
 
-# massage the shebangs in the entry points to pacify fascist redhat build tools
-for f in %{entry_points}; do \
-  sed -i -e 's:/usr/bin/env python:/usr/bin/%{python}:' %{buildroot}/usr/share/weewx/$f; \
-done
-
-# configure application layout
-	cat util/default/weewx | sed \
- -e 's%WEEWX_PYTHON=.*%WEEWX_PYTHON=%{python}%' \
- -e 's%WEEWX_BINDIR=.*%WEEWX_BINDIR=/usr/share/weewx%' \
- -e 's%WEEWX_BIN=.*%WEEWX_BIN=/usr/bin/weewxd%' \
- -e 's%WEEWX_CFG=.*%WEEWX_CFG=/etc/weewx/weewx.conf%' \
- > %{buildroot}/etc/default/weewx
 
 %pre
-if [ "$1" = "2" ]; then
+
+# create the weewx user and group if they do not yet exist
+create_user() {
+    if ! /usr/bin/getent group | grep -q "^$WEEWX_GROUP"; then
+        echo -n "Adding system group $WEEWX_GROUP..."
+        /usr/sbin/groupadd -r $WEEWX_GROUP > /dev/null
+        echo "done"
+    fi
+    if ! /usr/bin/getent passwd | grep -q "^$WEEWX_USER"; then
+        echo -n "Adding system user $WEEWX_USER..."
+        /usr/sbin/useradd -r -g $WEEWX_GROUP -M -d $WEEWX_HOME -s /sbin/nologin $WEEWX_USER > /dev/null
+        echo "done"
+    fi
+}
+
+# add the user doing the install to the weewx group, if appropriate
+add_to_group() {
+    if [ "$WEEWX_GROUP" != "root" ]; then
+        # see who is running the installation
+        inst_user=$(id -nu)
+        if [ "x$SUDO_USER" != "x" ]; then
+            inst_user=$SUDO_USER
+        fi
+        # put the user who is doing the installation into the weewx group,
+        # but only if it is not root or the weewx user.
+        if [ "x$inst_user" != "x" -a "$inst_user" != "root" -a "$inst_user" != "$WEEWX_USER" ]; then
+            # if user is already in the group, then skip it
+            if ! /usr/bin/getent group $WEEWX_GROUP | grep -q $inst_user; then
+                echo "Adding user $inst_user to group $WEEWX_GROUP"
+                usermod -aG $WEEWX_GROUP $inst_user
+            else
+                echo "User $inst_user is already in group $WEEWX_GROUP"
+            fi
+        fi
+    fi
+}
+
+%weewx_get_user_info
+create_user
+add_to_group
+
+if [ $1 -gt 1 ]; then
   # this is an upgrade
   if [ -f %{cfg_file} ]; then
-    echo saving previous config as %{cfg_file}.prev
+    echo Saving previous config as %{cfg_file}.prev
     cp -p %{cfg_file} %{cfg_file}.prev
   fi
 fi
 
+
 %post
-# pre-compile the python code
-%{python} -m compileall %{dst_bin_dir}
-if [ "$1" = "1" ]; then
-  # this is a new installation
-  # create a sane configuration file with simulator as the station type
-  /usr/bin/wee_config --install --dist-config=/etc/weewx/weewx.conf.dist --output=/etc/weewx/weewx.conf --driver=weewx.drivers.simulator --no-prompt --no-backup
-  if [ -f /etc/systemd/system/weewx.service ]; then
-    systemctl enable weewx
-    systemctl start weewx
-  else
-    chkconfig weewx on
-    %{initdir}/weewx start
-  fi
-elif [ "$1" = "2" ]; then
-  # this is an upgrade
-  # update previous config and merge with dist into to weewx.conf
-  if [ -f %{cfg_file}.dist -a -f %{cfg_file}.prev ]; then
-    OLDVER=`grep version %{cfg_file}.prev | sed -e 's/\s*version\s*=\s*//'`
-    echo saving previous config as %{cfg_file}-$OLDVER
-    mv %{cfg_file}.prev %{cfg_file}-$OLDVER
-    echo merging configs into %{cfg_file}
-    /usr/bin/wee_config --upgrade --config=%{cfg_file}-$OLDVER --dist-config=%{cfg_file}.dist --output=%{cfg_file} --no-prompt --no-backup
-  fi
-  # do a full restart not just a HUP
-  if [ -f /etc/systemd/system/weewx.service ]; then
-    systemctl stop weewx
-    systemctl start weewx
-  else
-    %{initdir}/weewx stop
-    %{initdir}/weewx start
-  fi
+
+# create a sane configuration file with simulator as the station type
+install_weewxconf() {
+    %{cfgapp} station reconfigure --config=%{cfg_file} --driver=weewx.drivers.simulator --no-prompt --no-backup > /dev/null
+}
+
+# this is an upgrade
+# upgrade a copy of the previous config to create the upgraded version, but
+# do not touch the user's configuration.
+#   weewx.conf          - user's conf (old)
+#   weewx.conf-new      - new conf for this weewx version
+#   weewx.conf-old-new  - user's conf upgraded to this weewx version
+#   weewx.conf.rpmnew   - new conf from this rpm (created by rpm rules)
+merge_weewxconf() {
+    if [ -f %{cfg_file}.prev ]; then
+        OLDVER=$(get_conf_version %{cfg_file}.prev)
+        if [ -f %{cfg_file}-%{weewx_version} ]; then
+            MNT=${OLDVER}-%{weewx_version}
+            echo Creating maintainer config file as %{cfg_file}-$MNT
+            cp -p %{cfg_file}.prev %{cfg_file}-$MNT
+            %{cfgapp} station upgrade --config=%{cfg_file}-$MNT --dist-config=%{cfg_file}-%{weewx_version} --what=config --no-backup --yes > /dev/null
+        fi
+    fi
+}
+
+precompile() {
+    rc=$(%{python} -m compileall -q -x 'user' %{dst_code_dir})
+    if [ "$rc" != "" ]; then
+        echo "Pre-compile failed!"
+        echo "$rc"
+    fi
+}
+
+# get the version number from the specified file, without the rpm revisions
+get_conf_version() {
+    v=$(grep '^version.*=' $1 | sed -e 's/\s*version\s*=\s*//' | sed -e 's/-.*//')
+    if [ "$v" = "" ]; then
+        # someone might have messed with the version string
+        v="xxx"
+    fi
+    echo $v
+}
+
+set_permissions() {
+    usr=$1
+    grp=$2
+    dir=$3
+    find $3 -type f -exec chmod 664 {} \;
+    find $3 -type d -exec chmod 2775 {} \;
+    chown -R $usr $dir
+    chgrp -R $grp $dir
+}
+
+# if there is a defaults file and it contains values that would interfere with
+# this installation, make a copy then insert values that we know will work.
+setup_defaults() {
+    dflts=/etc/default/weewx
+    if [ -f $dflts ]; then
+        WEEWX_PYTHON=$(grep "^WEEWX_PYTHON\s*=" $dflts | sed -e "s/WEEWX_PYTHON\s*=\s*//")
+        if [ ! -z "$WEEWX_PYTHON" -a "$WEEWX_PYTHON" != "python3" ]; then
+            REPLACE_PYTHON=1
+        fi
+        WEEWX_BINDIR=$(grep "^WEEWX_BINDIR\s*=" $dflts | sed -e "s/WEEWX_BINDIR\s*=\s*//")
+        if [ ! -z "$WEEWX_BINDIR" -a "$WEEWX_BINDIR" != "/usr/share/weewx" ]; then
+            REPLACE_BINDIR=1
+        fi
+        if [ "$REPLACE_PYTHON" != "" -o "$REPLACE_BINDIR" != "" ]; then
+            echo "Saving old defaults to ${dflts}-$ts"
+            cp -p $dflts ${dflts}-$ts
+            if [ "$REPLACE_PYTHON" != "" ]; then
+                sed -i -e "s:^WEEWX_PYTHON\s*=.*:WEEWX_PYTHON=python3:" $dflts
+            fi
+            if [ "$REPLACE_BINDIR" != "" ]; then
+                sed -i -e "s:^WEEWX_BINDIR\s*=.*:WEEWX_BINDIR=/usr/share/weewx:" $dflts
+            fi
+        fi
+    fi
+}
+
+# install the init files
+setup_init() {
+    if [ -d %{systemd_dir} ]; then
+        for f in weewx.service weewx@.service; do
+            sed \
+  -e "s/User=.*/User=${WEEWX_USER}/" \
+  -e "s/Group=.*/Group=${WEEWX_GROUP}/" \
+  %{dst_cfg_dir}/systemd/$f > %{systemd_dir}/$f
+        done
+        if [ "$pid1" = "systemd" ]; then
+            systemctl daemon-reload > /dev/null 2>&1 || :
+        fi
+    fi
+}
+
+# remove any previous init configuration that could interfere
+migrate_init() {
+    if [ -f /etc/init.d/weewx ]; then
+	chkconfig --del weewx > /dev/null 2>&1
+	mv /etc/init.d/weewx /etc/init.d/weewx.rpmsave
+    fi
+    if [ -f /etc/init.d/weewx-multi ]; then
+	chkconfig --del weewx-multi > /dev/null 2>&1
+	mv /etc/init.d/weewx-multi /etc/init.d/weewx-multi.rpmsave
+    fi
+}
+
+# install the udev rules
+setup_udev() {
+    if [ -d %{udev_dir} ]; then
+        sed \
+  -e "s/GROUP=\"weewx\"/GROUP=\"${WEEWX_GROUP}\"/" \
+  %{dst_cfg_dir}/udev/weewx.rules > %{udev_dir}/60-weewx.rules
+    fi
+}
+
+# copy the skins if there are not already skins in place
+setup_skins() {
+    if [ ! -d %{dst_cfg_dir}/skins ]; then
+        cp -rp %{dst_code_dir}/weewx_data/skins %{dst_cfg_dir}
+    fi
+}
+
+# create the user extensions directory if one does not already exist
+setup_user_dir() {
+    if [ ! -d %{dst_user_dir} ]; then
+        mkdir -p %{dst_user_dir}
+        cp %{dst_code_dir}/weewx_data/bin/user/__init__.py %{dst_user_dir}
+        cp %{dst_code_dir}/weewx_data/bin/user/extensions.py %{dst_user_dir}
+    fi
+}
+
+# create the database directory.  set ownership on everything in the directory
+# but do not mess with permissions.
+setup_database_dir() {
+    echo "Configuring database directory %{sqlite_root}"
+    mkdir -p %{sqlite_root}
+    chmod 2775 %{sqlite_root}
+    find %{sqlite_root} -name "*.sdb" -exec chmod 664 {} \;
+    chown -R $WEEWX_USER:$WEEWX_GROUP %{sqlite_root}
+}
+
+# create the reports directory
+setup_reporting_dir() {
+    echo "Configuring reporting directory %{html_root}"
+    mkdir -p %{html_root}
+    set_permissions $WEEWX_USER $WEEWX_GROUP %{html_root}
+}
+
+# set the permissions on the configuration, skins, and extensions
+set_config_permissions() {
+    echo "Setting permissions $WEEWX_USER:$WEEWX_GROUP on %{dst_cfg_dir}"
+    set_permissions $WEEWX_USER $WEEWX_GROUP %{dst_cfg_dir}
+    # ensure that the configuration files are not world-readable so that
+    # we protect any passwords and tokens
+    chmod 660 /etc/weewx/*.conf*
+}
+
+# if this is an upgrade from V4, copy any extensions to the V5 location
+migrate_extensions() {
+    if [ -d /usr/share/weewx/user ]; then
+        echo "Copying old extensions to /etc/weewx/bin/user"
+        cp -rp /usr/share/weewx/user/* /etc/weewx/bin/user
+        echo "Moving old extensions to /usr/share/weewx/user-$ts"
+        mv /usr/share/weewx/user /usr/share/weewx/user-$ts
+    fi
+}
+
+# we explicitly do *not* pay attention to the systemd.preset, since that
+# just causes unnecessary confusion, for example between presets for a
+# server or workstation configuration, or even from one version of systemd
+# to another.  just always enable weewx.
+enable_weewxd() {
+    if [ "$1" = "systemd" ]; then
+	cfgs=$2
+	if [ "$cfgs" = "" -o "$cfgs" = "weewx" ]; then
+	    systemctl enable weewx > /dev/null 2>&1 || :
+	else
+	    for i in $cfgs; do
+		systemctl enable weewx@$i > /dev/null 2>&1 || :
+	    done
+	fi
+    fi
+}
+
+start_weewxd() {
+    if [ "$1" = "systemd" ]; then
+	cfgs=$2
+	if [ "$cfgs" = "" ]; then
+	    systemctl start weewx > /dev/null 2>&1 || :
+	else
+	    for i in $cfgs; do
+		systemctl start weewx@$i > /dev/null 2>&1 || :
+	    done
+	fi
+    fi
+}
+
+# just in case there is an old weewxd running somehow, shut it down
+stop_old_weewxd() {
+    if [ "$1" = "systemd" ]; then
+	if [ -f /etc/init.d/weewx-multi ]; then
+	    service stop weewx-multi > /dev/null 2>&1 || :
+	fi
+	systemctl stop weewx > /dev/null 2>&1 || :	
+    fi
+}
+
+# see how many instances of weewxd are running
+count_instances() {
+    NUM_INSTANCES=$(ps ax | grep weewxd | egrep -v grep | wc -l)
+    echo $NUM_INSTANCES
+}
+
+# timestamp for files we must move aside
+ts=`/usr/bin/date +"%%Y%%m%%d%%H%%M%%S"`
+
+# see which init system (if any) is running
+pid1=none
+if [ -d /run/systemd/system ]; then
+  pid1=systemd
 fi
 
+%weewx_get_user_info
+echo "Using $WEEWX_USER:$WEEWX_GROUP as user:group"
+
+# default to running an instance of weewxd
+num_weewxd=1
+if [ $1 -gt 1 ]; then
+    # this is an upgrade, so see if weewx is already running
+    num_weewxd=$(count_instances)
+    echo "Found $num_weewxd running instances of weewxd"
+    # this is an upgrade, so ensure that weewx is not running
+    stop_old_weewxd $pid1
+fi
+setup_defaults $pid1
+setup_udev
+
+if [ "$1" = "1" ]; then
+    # this is a new install so create a config file
+    install_weewxconf
+elif [ $1 -gt 1 ]; then
+    # this is an upgrade so create a maintainers version by merging the config
+    merge_weewxconf
+    # migrate any extensions from V4 location to V5
+    migrate_extensions
+    # remove any previous init configuration that might interfere
+    migrate_init $pid1
+fi
+
+setup_skins
+setup_user_dir
+setup_database_dir
+setup_reporting_dir
+precompile
+set_config_permissions
+setup_init $pid1
+enable_weewxd $pid1
+if [ "$num_weewxd" != "0" ]; then
+    # if this is a new install, start weewx no matter what.  if this
+    # is an upgrade, start weewx only if it was running before.
+    start_weewxd $pid1
+fi
+
+
 %preun
+# 0 remove last version
+# 1 first install
+# 2 upgrade
+
+# see which init system (if any) is running
+pid1=none
+if [ -d /run/systemd/system ]; then
+  pid1=systemd
+fi
+
 if [ "$1" = "0" ]; then
   # this is an uninstall, so stop and remove everything
-  if [ -f /etc/systemd/system/weewx.service ]; then
-    systemctl stop weewx
-    systemctl disable weewx
-  else
-    %{initdir}/weewx stop
-    chkconfig weewx off
+  if [ "$pid1" = "systemd" ]; then
+    systemctl stop weewx > /dev/null 2>&1 || :
+    systemctl disable weewx > /dev/null 2>&1 || :
+    for f in weewx.service weewx@.service; do
+	if [ -f %{systemd_dir}/$f ]; then
+	    rm -f %{systemd_dir}/$f
+	fi
+    done
   fi
+  # remove udev rules
+  if [ -f %{udev_dir}/60-weewx.rules ]; then
+      rm -f %{udev_dir}/60-weewx.rules
+  fi
+  # remove any bytecompiled code
+  find /usr/share/weewx -name '*.pyc' -delete
+  find /usr/share/weewx -name __pycache__ -delete
+  find /etc/weewx/bin -name '*.pyc' -delete
+  find /etc/weewx/bin -name __pycache__ -delete
 fi
-# otherwise this is an upgrade (1), so do nothing
+# otherwise this is a first install or upgrade, so do nothing
+
 
 %clean
 rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%if "%{initdir}" == "/etc/systemd/system"
-  %{initdir}/weewx.service
-%else
-  %attr(755,root,root) %{initdir}/weewx
-%endif
-%{_sysconfdir}/default/weewx
-%{dst_bin_dir}/
-%{_bindir}/weewxd
-%{_bindir}/wee_config
-%{_bindir}/wee_database
-%{_bindir}/wee_debug
-%{_bindir}/wee_device
-%{_bindir}/wee_extension
-%{_bindir}/wee_import
-%{_bindir}/wee_reports
-%{_bindir}/wunderfixer
+%attr(0755,root,root) %{_bindir}/weewxd
+%attr(0755,root,root) %{_bindir}/weectl
+%{dst_code_dir}/
 %doc %{dst_doc_dir}/
 %config(noreplace) %{dst_cfg_dir}/
-%config(noreplace) %{dst_user_dir}/extensions.py
+
 %changelog

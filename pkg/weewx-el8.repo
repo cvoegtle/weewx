@@ -2,4 +2,10 @@
 name=weewx
 baseurl=http://weewx.com/yum/weewx/el8
 enabled=1
-gpgcheck=0
+gpgcheck=1
+
+[weewx-testing]
+name=weewx
+baseurl=http://weewx.com/yum-test/weewx/el8
+enabled=0
+gpgcheck=1

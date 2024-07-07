@@ -1,3 +1,68 @@
+* Thu Jul 04 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.1.0-2
+- ensure weewxd runs after install
+* Thu Jul 04 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.1.0-1
+- new upstream release
+* Thu Jul 04 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.1.0b6-1
+- new upstream release
+* Wed Jul 04 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.1.0b5-2
+- fix bug in the instance count
+- ignore systemd presets
+* Wed Jul 03 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.1.0b5-1
+- new upstream release
+- use systemd presets
+- on upgrades, do not start weewxd unless it was previously running
+* Sat May 25 2024 Tom Keffer (Author of WeeWX) <tkeffer@gmail.com> - 5.1.0b4-1
+- Allow multiple locales
+* Sun May 05 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.1.0b1-1
+- fix grep invocation for /etc/default/weewx
+* Sat Feb 10 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.0.2-1
+- new upstream release
+* Sun Feb 04 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.0.1-3
+- fix permissions for real this time
+* Sun Feb 04 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.0.1-2
+- set permissions on all files and directories in /etc/weewx
+* Mon Jan 22 2024 Matthew Wall <mwall.weewx@gmail.com> - 5.0.1-1
+- new upstream release
+* Sun Jan 14 2024 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0-1
+- new upstream release
+* Thu Jan 11 2024 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0rc3-3
+- there is no pre-built pyephem for redhat9 (as of 9.3)
+* Mon Jan 08 2024 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0rc3-2
+- change ownership of database and report directories unconditionally
+* Sun Jan 07 2024 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0rc3-1
+- new upstream release
+* Fri Dec 29 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0rc2-1
+- new upstream release
+* Thu Dec 28 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0rc1-3
+- do skins in post
+- do systemd units in post
+- do udev rules in post
+* Tue Dec 26 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0rc1-2
+- include ephem as a dependency
+* Thu Dec 21 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0rc1-1
+- new upstream release
+* Mon Dec 18 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b18-1
+- new upstream release
+* Wed Dec 13 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b17-4
+- remove bytecompiled code before removing package
+- do not enable template unit
+* Wed Dec 13 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b17-3
+- fix typo in config file macro name
+* Wed Dec 13 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b17-2
+- do not fail if there is no systemd
+- set the x bit on weewxd and weectl
+* Tue Dec 12 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b17-1
+- new upstream release
+* Tue Nov 28 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b16-1
+- new upstream release
+* Sat Oct 28 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b15-1
+- new upstream release
+* Sat May 06 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0b1-1
+- new upstream release
+* Sat May 06 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0a30-1
+- new upstream release
+* Fri May 05 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 5.0.0a29-1
+- new upstream release
 * Wed Feb 22 2023 Thomas Keffer (Author of weewx) <tkeffer@gmail.com> - 4.10.2-1
 - new upstream release
 * Mon Jan 30 2023 Matthew Wall (weewx) <mwall@users.sourceforge.net> - 4.10.1-1

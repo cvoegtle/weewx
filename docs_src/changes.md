@@ -1,6 +1,16 @@
 WeeWX change history
 --------------------
 
+### 5.1.X MM/DD/YYYY
+
+Fix typo that causes phantom values of `soilMoist3` to appear with VantageVue
+stations.
+
+Fix bug that prevented relative paths to the config file from working.
+
+Allow simple Python objects to be used as an argument to `$jsonize()`.
+
+
 ### 5.1.0 07/04/2024
 
 If option `lang` is a valid locale, then it will be used to change locale as

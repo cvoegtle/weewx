@@ -1,7 +1,43 @@
 WeeWX change history
 --------------------
 
-### 5.1.X MM/DD/YYYY
+### 5.2.1 MM/DD/YYYY
+
+Remove unnecessary `UNIQUE` index on `PRIMARY KEY` columns in SQLite, achieving
+size reduction of ~10%.  Existing database schemas are not modified.  Users
+desiring size reduction are advised to consider manually migrating.
+
+Fix problem that prevented `weectl database reconfigure` from working in cases
+where a schema was specified.
+
+Fix problem when importing data into a MySQL database. PR
+[#1025](https://github.com/weewx/weewx/pull/1025). Thanks to user Robert!
+
+Fix problem that prevented `weewxd` from restarting reliably if a MySQL
+connection was lost. Fixes [Issue #1036](https://github.com/weewx/weewx/pull/1036).
+
+
+### 5.2.0 10/05/2025
+
+Now require Python 3.7 or greater.
+
+Added support for WOW-BE. PR [#1014](https://github.com/weewx/weewx/pull/1014).
+Fixes issue [#1013](https://github.com/weewx/weewx/issues/1013). Thanks to user
+John!
+
+Module `schema` is now under module `weewx. This lessens pollution of the Python
+namespace. Addresses [Issue #993](https://github.com/weewx/weewx/issues/993).
+
+The WeeWX Almanac is now extensible, allowing other astronomy packages to be
+used besides `pyephem`. In particular, a WeeWX extension that uses the
+[Skyfield](https://rhodesmill.org/skyfield/) package is available and can be
+installed. See [Issue #981](https://github.com/weewx/weewx/issues/981) 
+and [PR #988](https://github.com/weewx/weewx/pull/988). Thanks to user Johanna!
+
+Fix LOGNAME bug in the weewx-multi sysV script.  Thanks to Glenn McKechnie.
+
+Added `illuminance` to the `wview_extended` schema. See [Issue #992](https://github.com/weewx/weewx/issues/991) 
+and [PR #992](https://github.com/weewx/weewx/pull/992/files). Thanks to user Jeremy!
 
 Fix typo that causes phantom values of `soilMoist3` to appear with VantageVue
 stations.
@@ -9,6 +45,35 @@ stations.
 Fix bug that prevented relative paths to the config file from working.
 
 Allow simple Python objects to be used as an argument to `$jsonize()`.
+
+Adjust exclusion of top-level files in wheel creation to meet poetry
+norms and to be consistent across poetry-core versions.  Fixes issue
+[#993](https://github.com/weewx/weewx/issues/993), in part.
+
+Fix problem that prevented cached values of first and last timestamp from
+being set. [PR #999](https://github.com/weewx/weewx/pull/999). Thanks to user
+Rich Bell!
+
+Fix problem in `Standard` skin if `Select Month` was literally selected in drop
+down list. [PR #1002](https://github.com/weewx/weewx/pull/1002). Thanks to user
+Ben Cotton!
+
+In the Cumulus import code, the prefix `cur_` is used to signify a current value
+for most observation types. However, there was one exception: `curr_in_temp`.
+The utility and documentation have been changed to use `cur_in_temp` (one
+'`r`'), making all types consistent. Fixes [Issue #1006](https://github.com/weewx/weewx/issues/1006).
+
+Fix a problem caused by an assumption that delta times are always in seconds.
+Fixes issue [Issue #1009](https://github.com/weewx/weewx/issues/1009).
+
+Fix bug that prevented arbitrary types from being used with `weectl database
+add-column`. Fixes issue [Issue #1007](https://github.com/weewx/weewx/issues/1007).
+
+Fix bug that prevented MySQL and MariaDB versions greater than 10.0 from
+working. Fixes issue [Issue #1010](https://github.com/weewx/weewx/issues/1010).
+
+Wind direction plots in the Standard skin now use discrete marks, rather than
+continuous lines.
 
 
 ### 5.1.0 07/04/2024

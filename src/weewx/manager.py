@@ -35,7 +35,7 @@ Note the entry 'manager':
         manager = weewx.manager.DaySummaryManager
         # The schema defines the structure of the database.
         # It is *only* used when the database is created.
-        schema = schemas.wview_extended.schema
+        schema = weewx.schemas.wview_extended.schema
 
 To avoid making the user dig into the configuration dictionary to figure out which type of
 database manager to open, there is a convenience function for doing so:
@@ -65,9 +65,9 @@ import weedb
 import weeutil.config
 import weeutil.weeutil
 import weewx.accum
-import weewx.units
 import weewx.xtypes
 from weeutil.weeutil import timestamp_to_string, to_int, TimeSpan
+from weewx.units import GenWithConvert
 
 log = logging.getLogger(__name__)
 
@@ -417,10 +417,8 @@ class Manager:
 
         # Update the cached timestamps. This has to sit outside the transaction context,
         # in case an exception occurs.
-        if self.first_timestamp is not None:
-            self.first_timestamp = min(min_ts, self.first_timestamp)
-        if self.last_timestamp is not None:
-            self.last_timestamp = max(max_ts, self.last_timestamp)
+        self.first_timestamp = min_ts if self.first_timestamp is None else min(min_ts, self.first_timestamp)
+        self.last_timestamp = max_ts if self.last_timestamp is None else max(max_ts, self.last_timestamp)
 
         return N
 
@@ -463,8 +461,8 @@ class Manager:
         except weedb.IntegrityError:
             if not update:
                 raise
-            set_stmt = ', '.join(["%s=?" % k for k in key_list])
-            where_stmt = ' AND '.join(["%s IS ?" % k for k in key_list])
+            set_stmt = ', '.join(["`%s`=?" % k for k in key_list])
+            where_stmt = ' AND '.join(["`%s` <=> ?" % k for k in key_list])
             sql_update_stmt = "UPDATE %s SET %s WHERE dateTime = ? AND NOT (%s)" % (self.table_name, set_stmt, where_stmt)
             cursor.execute(sql_update_stmt, value_list + [record['dateTime'],] + value_list)
             if log_success:
@@ -579,7 +577,7 @@ class Manager:
             new_value (float | str): The updated value
         """
 
-        self.connection.execute("UPDATE %s SET %s=? WHERE dateTime=?" %
+        self.connection.execute("UPDATE %s SET `%s`=? WHERE dateTime=?" %
                                 (self.table_name, obs_type), (new_value, timestamp))
 
     def getSql(self, sql, sqlargs=(), cursor=None):
@@ -706,12 +704,11 @@ def reconfig(old_db_dict, new_db_dict, new_unit_system=None, new_schema=None, dr
 
     with Manager.open(old_db_dict) as old_archive:
         if new_schema is None:
-            import schemas.wview_extended
-            new_schema = schemas.wview_extended.schema
+            import weewx.schemas.wview_extended
+            new_schema = weewx.schemas.wview_extended.schema
         with Manager.open_with_create(new_db_dict, schema=new_schema) as new_archive:
             # Wrap the input generator in a unit converter.
-            record_generator = weewx.units.GenWithConvert(old_archive.genBatchRecords(),
-                                                          new_unit_system)
+            record_generator = GenWithConvert(old_archive.genBatchRecords(), new_unit_system)
             if not dry_run:
                 # This is very fast because it is done in a single transaction context:
                 new_archive.addRecord(record_generator)
@@ -799,7 +796,7 @@ class DBBinder:
 default_binding_dict = {'database': 'archive_sqlite',
                         'table_name': 'archive',
                         'manager': 'weewx.manager.DaySummaryManager',
-                        'schema': 'schemas.wview_extended.schema'}
+                        'schema': 'weewx.schemas.wview_extended.schema'}
 
 
 def get_database_dict_from_config(config_dict, database):
@@ -903,7 +900,13 @@ def get_manager_dict_from_config(config_dict, data_binding,
                                   manager_dict['schema']]
     else:
         # Schema is a string, with the name of the schema object
-        manager_dict['schema'] = weeutil.weeutil.get_object(schema_name)
+        try:
+            manager_dict['schema'] = weeutil.weeutil.get_object(schema_name)
+        except (ModuleNotFoundError, ImportError) as e:
+            log.debug("Could not load schema '%s'", schema_name)
+            log.debug("**** Reason: %s", e)
+            log.debug("**** Trying '%s'", 'weewx.' + schema_name)
+            manager_dict['schema'] = weeutil.weeutil.get_object('weewx.' + schema_name)
 
     return manager_dict
 
@@ -1013,7 +1016,7 @@ class DaySummaryManager(Manager):
     # Schemas used by the daily summaries:
     day_schemas = {
         'scalar': [
-            ('dateTime', 'INTEGER NOT NULL UNIQUE PRIMARY KEY'),
+            ('dateTime', 'INTEGER NOT NULL PRIMARY KEY'),
             ('min', 'REAL'),
             ('mintime', 'INTEGER'),
             ('max', 'REAL'),
@@ -1024,7 +1027,7 @@ class DaySummaryManager(Manager):
             ('sumtime', 'INTEGER')
         ],
         'vector': [
-            ('dateTime', 'INTEGER NOT NULL UNIQUE PRIMARY KEY'),
+            ('dateTime', 'INTEGER NOT NULL PRIMARY KEY'),
             ('min', 'REAL'),
             ('mintime', 'INTEGER'),
             ('max', 'REAL'),
@@ -1044,7 +1047,7 @@ class DaySummaryManager(Manager):
 
     # SQL statements used by the metadata in the daily summaries.
     meta_create_str = "CREATE TABLE %s_day__metadata (name CHAR(20) NOT NULL " \
-                      "UNIQUE PRIMARY KEY, value TEXT);"
+                      "PRIMARY KEY, value TEXT);"
     meta_replace_str = "REPLACE INTO %s_day__metadata VALUES(?, ?)"
     meta_select_str = "SELECT value FROM %s_day__metadata WHERE name=?"
 

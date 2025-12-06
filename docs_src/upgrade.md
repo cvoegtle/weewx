@@ -42,6 +42,107 @@ upgrade the configuration file `/etc/weewx/other.conf`:
 sudo weectl station upgrade --config=/etc/weewx/other.conf
 ```
 
+## Upgrading to V5.2
+
+### Python 3.7 or later is now required
+
+It has been 4 years since Python 3.6 reached end-of-life.
+
+
+### Module `schema` has been relocated
+
+Module `schema` has been relocated such that it is now part of module `weewx`.
+For example, schema `schema.wview_extended` can now be found at
+`weewx.schema.wview_extended`. A shim has been included for backwards
+compatibility for old configuration files that might still use the `schema`
+namespace.
+
+However, if you directly import a schema, then you will have to change it. For
+example:
+
+<div class="wide-table">
+  <table>
+    <tr class="first_row">
+      <td style='width:50%'>V5.1 and earlier</td>
+      <td>V5.2 and later</td>
+    </tr>
+    <tr class="tty">
+      <td>import schema.wview_extended</td>
+      <td>import <span class="added">weewx.</span>schema.wview_extended</td>
+    </tr>
+  </table>
+</div>
+
+
+### Support for WOW-BE
+Support for [WOW-BE](https://wow.meteo.be/en/) has been added. To use it 
+requires a change in older `weewx.conf` configuration files. Look through
+your `weewx.conf` for the stanza `[[WOW]]`, then add one for `[[WOW-BE]]`
+directly underneath. When you're done, it should look something like this:
+
+
+<div class="wide-table">
+  <table>
+    <tr class="first_row">
+      <td style='width:50%'>V5.1 and earlier</td>
+      <td>V5.2 and later</td>
+    </tr>
+    <tr class="tty">
+      <td>    
+    [[WOW]]
+        # This section is for configuring posts to WOW (wow.metoffice.gov.uk).
+
+        # If you wish to post to WOW, set the option 'enable' to true, then
+        # specify a station and password.
+        # Use quotes around the password to guard against parsing errors.
+        enable = false
+        station = replace_me
+        password = replace_me
+</td>
+      <td>
+    [[WOW]]
+        # This section is for configuring posts to WOW (wow.metoffice.gov.uk).
+
+        # If you wish to post to WOW, set the option 'enable' to true, then
+        # specify a station and password.
+        # Use quotes around the password to guard against parsing errors.
+        enable = false
+        station = replace_me
+        password = replace_me
+    
+    [[WOW-BE]]
+        # This section is for configuring WeeWX to upload to WOW-BE (wow.meteo.be)
+
+        # If you wish to post to WOW-BE, set the option 'enable' to true, then
+        # specify a station and password.
+        # Use quotes around the password to guard against parsing errors.
+        enable = false
+        station = replace_me
+        password = replace_me
+</td>
+    </tr>
+  </table>
+</div>
+
+Finally, `weewx.restx.StdWOWBE` should be added into `restful_services`.
+
+
+### Luminosity and Illuminance
+
+Previously, the `wview_extended` schema included a type `luminosity` (typically
+measured in `lumens`), which is a measure of the perceived light emitted from a
+source, a quantity that probably is not of interest to the weather community.
+
+What the community really needs is `illuminance`, which is a measure of 
+perceived light that falls on a surface area. It is typically measured in `lux`.
+
+To affect this change, a new type `illuminance` has been added to the
+`wview_extended` schema. The unit `lux` already exists. 
+
+Extension writers who have been using `luminosity` should consider using
+`illuminance`.
+
+
 ## Upgrading to V5.0
 
 There have been many changes with Version 5, but only a handful are likely to

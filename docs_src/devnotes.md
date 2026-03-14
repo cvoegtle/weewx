@@ -60,16 +60,16 @@ To meet these goals, the following strategies were used:
   [ConfigObj](https://configobj.readthedocs.io) module, by Michael
   Foord and Nicola Larosa, was chosen to read the configuration file.
   This allows many options that might otherwise have to go in the
-  code, to be in a configuration file.
+  code to be in a configuration file.
 
 - A powerful templating engine. The
   [Cheetah](https://cheetahtemplate.org/) module was chosen for
-  generating html and other types of files from templates. Cheetah
+  generating HTML and other types of files from templates. Cheetah
   allows *search list extensions* to be defined, making it easy to
   extend WeeWX with new template tags.
 
 - Pure Python. The code base is 100% Python &mdash; no underlying C
-  libraries need be built to install WeeWX. This also means no
+  libraries need to be built in order to install WeeWX. This also means no
   Makefiles are needed.
 
 While WeeWX is nowhere near as fast at generating images and HTML as its
@@ -80,10 +80,10 @@ MHz machine where generating the 9 images used in the *Current
 Conditions* page takes just under 2 seconds (compared with 0.4 seconds
 for wview).
 
-All writes to the databases are protected by transactions. You can kill
+Transactions protect all writes to the databases. You can kill
 the program at any time without fear of corrupting the databases.
 
-The code makes ample use of exceptions to insure graceful recovery from
+The code makes ample use of exceptions to ensure graceful recovery from
 problems such as network outages. It also monitors socket and console
 timeouts, restarting whatever it was working on several times before
 giving up. In the case of an unrecoverable console error (such as the
@@ -112,7 +112,7 @@ a difference:
 
 2. In the database. Either US or Metric can be used.
 
-3. In the presentation (i.e., html and image files).
+3. In the presentation (i.e., HTML and image files).
 
 The general strategy is that measurements are converted by service
 `StdConvert` as they come off the weather station into a target
@@ -142,34 +142,32 @@ is used as the primary key in the SQL database.
 
 ## Time
 
-WeeWX stores all data in UTC (roughly, *Greenwich* or *Zulu*) time.
-However, usually one is interested in weather events in local time and
-want image and HTML generation to reflect that. Furthermore, most
-weather stations are configured in local time. This requires that many
-data times be converted back and forth between UTC and local time. To
-avoid tripping up over time zones and daylight savings time, WeeWX
-generally uses Python routines to do this conversion. Nowhere in the
-code base is there any explicit recognition of DST. Instead, its
-presence is implicit in the conversions. At times, this can cause the
-code to be relatively inefficient.
+WeeWX stores all data in Unix epoch time (roughly, *UTC*, *Greenwich* or *Zulu*)
+time. However, usually one is interested in weather events in local time and
+wants image and HTML generation to reflect that. Furthermore, most weather
+stations are configured in local time. This requires that many data times be
+converted back and forth between Unix time and local time. To avoid tripping up
+over time zones and daylight savings time, WeeWX generally uses Python routines
+to do this conversion. Nowhere in the code base is there any explicit
+recognition of DST. Instead, its presence is implicit in the conversions. At
+times, this can cause the code to be relatively inefficient.
 
-For example, if one wanted to plot something every 3 hours in UTC time,
-it would be very simple: to get the next plot point, just add 10,800 to
+For example, if one wanted to plot something every 3 hours in Unix time,
+it would be very simple: to get the next plot point, add 10,800 to
 the epoch time:
 
 ```
 next_ts = last_ts + 10800 
 ```
 
-But, if one wanted to plot something for every 3 hours *in local time*
-(that is, at 0000, 0300, 0600, etc.), despite a possible DST change in
-the middle, then things get a bit more complicated. One could modify the
-above to recognize whether a DST transition occurs sometime between
-`last_ts` and the next three hours and, if so, make the necessary
-adjustments. This is generally what `wview` does. WeeWX takes a
-different approach and converts from UTC to local, does the arithmetic,
-then converts back. This is inefficient, but bulletproof against changes
-in DST algorithms, etc.:
+But if one wanted to plot something for every 3 hours *in local time* (that is,
+at 0000, 0300, 0600, etc.), despite a possible DST change in the middle, then
+things get a bit more complicated. One could modify the above to recognize
+whether a DST transition occurs sometime between `last_ts` and the next three
+hours and, if so, make the necessary adjustments. This is generally what `wview`
+does. WeeWX takes a different approach and converts from UTC to local, does the
+arithmetic, then converts back. This is inefficient, but bulletproof against
+changes in DST algorithms, etc.:
 
 ```
 time_dt = datetime.datetime.fromtimestamp(last_ts)
@@ -188,9 +186,9 @@ times will probably be incorrect.
 ## Archive records
 
 An archive record's timestamp, whether in software or in the database,
-represents the *end time* of the record. For example, a record
-timestamped 05-Feb-2016 09:35, includes data from an instant after
-09:30, through 09:35. Another way to think of it is that it is exclusive
+represents the *end time* of the record. For example, with a 5-minute archive
+time, a record timestamped 05-Feb-2016 09:35 includes data from an instant
+after 09:30, through 09:35. Another way to think of it is that it is exclusive
 on the left, inclusive on the right. Schematically:
 
 ```
@@ -198,7 +196,7 @@ on the left, inclusive on the right. Schematically:
 ```
 
 Database queries should reflect this. For example, to find the maximum
-temperature for the hour between timestamps 1454691600 and 1454695200,
+temperature for the hour between timestamps `1454691600` and `1454695200`,
 the query would be:
 
 ```
@@ -206,12 +204,12 @@ SELECT MAX(outTemp) FROM archive
   WHERE dateTime > 1454691600 and dateTime <= 1454695200;
 ```
 
-This ensures that the record at the beginning of the hour (1454691600)
+This ensures that the record at the beginning of the hour (`1454691600`)
 does not get included (it belongs to the previous hour), while the
-record at the end of the hour (1454695200) does.
+record at the end of the hour (`1454695200`) does.
 
-One must be constantly be aware of this convention when working with
-timestamped data records.
+One must be constantly aware of this convention when working with timestamped
+data records.
 
 Better yet, if you need this kind of information, use an
 [xtypes](https://github.com/weewx/weewx/wiki/WeeWX-V4-user-defined-types)
@@ -224,213 +222,10 @@ max_temp = weewx.xtypes.get_aggregate('outTemp',
                                       db_manager)
 ```
 
-It will not only make sure the limits of the query are correct, but will
+It will not only make sure the limits of the query are correct but will
 also decide whether the daily summary optimization can be used
 ([details below](#daily-summaries)). If not, it will use the regular
 archive table.
-
-## Internationalization
-
-Generally, WeeWX is locale aware. It will emit reports using the local
-formatting conventions for date, times, and values.
-
-## Exceptions
-
-In general, your code should not simply swallow an exception. For
-example, this is bad form:
-
-```
-    try:
-        os.rename(oldname, newname)
-    except:
-        pass
-```
-
-While the odds are that if an exception happens it will be because the
-file `oldname` does not exist, that is not guaranteed. It could
-be because of a keyboard interrupt, or a corrupted file system, or
-something else. Instead, you should test explicitly for any expected
-exception, and let the rest go by:
-
-```
-    try:
-        os.rename(oldname, newname)
-    except OSError:
-        pass
-```
-
-WeeWX has a few specialized exception types, used to rationalize all
-the different types of exceptions that could be thrown by the underlying
-libraries. In particular, low-level I/O code can raise a myriad of
-exceptions, such as USB errors, serial errors, network connectivity
-errors, *etc.* All device drivers should catch these exceptions and
-convert them into an exception of type `WeeWxIOError` or one of
-its subclasses.
-
-## Naming conventions
-
-How you name variables makes a big difference in code readability. In
-general, long names are preferable to short names. Instead of this,
-
-```
-p = 990.1
-```
-
-use this,
-
-```
-pressure = 990.1
-```
-
-or, even better, this:
-
-```
-pressure_mbar = 990.1
-```
-
-WeeWX uses a number of conventions to signal the variable type, although
-they are not used consistently.
-
-<table class="no_indent">
-  <caption>Variable suffix conventions</caption>
-  <tr class="first_row">
-    <td>Suffix</td>
-    <td>Example</td>
-    <td>Description</td>
-  </tr>
-  <tr>
-    <td class="code">_ts</td>
-    <td class="code">first_ts</td>
-    <td>Variable is a timestamp in <a href="https://en.wikipedia.org/wiki/Unix_time">unix epoch time</a>.</td>
-  </tr>
-  <tr>
-    <td class="code">_dt</td>
-    <td class="code">start_dt</td>
-    <td>Variable is an instance of <a href="https://docs.python.org/3/library/datetime.html#datetime-objects"><span class="code">datetime.datetime</span></a>, usually in <em>local time</em>.</td>
-  </tr>
-  <tr>
-    <td class="code">_d</td>
-    <td class="code">end_d</td>
-    <td>Variable is an instance of <a href="https://docs.python.org/3/library/datetime.html#date-objects"><span class="code">datetime.date</span></a>, usually in <em>local time</em>.</td>
-  </tr>
-  <tr>
-    <td class="code">_tt</td>
-    <td class="code">sod_tt</td>
-    <td>Variable is an instance of <span class="code">time.struct_time</span> (a <a href="https://docs.python.org/3/library/time.html#time.struct_time"><em>time tuple</em>)</a>, usually in <em>local time</em>.</td>
-  </tr>
-  <tr>
-    <td class="code">_vh</td>
-    <td class="code">pressure_vh</td>
-    <td>Variable is an instance of <span class="code">weewx.units.ValueHelper</span>.</td>
-  </tr>
-  <tr>
-    <td class="code">_vt</td>
-    <td class="code">speed_vt</td>
-    <td>Variable is an instance of <span class="code">weewx.units.ValueTuple</span>.</td>
-  </tr>
-</table>
-
-## Code style
-
-Generally, we try to follow the [PEP 8 style
-guide](https://www.python.org/dev/peps/pep-0008/), but there are *many*
-exceptions. In particular, many older WeeWX function names use
-camelCase, but PEP 8 calls for snake_case. Please use snake_case for new
-code.
-
-Most modern code editors, such as Eclipse, or PyCharm, have the ability
-to automatically format code. Resist the temptation and *don't use this
-feature!* Two reasons:
-
-- Unless all developers use the same tool, using the same settings, we
-  will just thrash back and forth between slightly different versions.
-
-- Automatic formatters play a useful role, but some of what they do
-  are really trivial changes, such as removing spaces in otherwise
-  blank lines. Now if someone is trying to figure out what real,
-  syntactic, changes you have made, s/he will have to wade through all
-  those extraneous *changed lines,* trying to find the important
-  stuff.
-
-If you are working with a file where the formatting is so ragged that
-you really must do a reformat, then do it as a separate commit. This
-allows the formatting changes to be clearly distinguished from more
-functional changes.
-
-When invoking functions or instantiating classes, use the fully
-qualified name. Don't do this:
-
-```
-from datetime import datetime
-now = datetime()
-```
-
-Instead, do this:
-
-```
-import datetime
-now = datetime.datetime()
-```
-
-## Git work flow
-
-We use Git as the source control system. If Git is still mysterious to
-you, bookmark this: [*Pro Git*](https://git-scm.com/book/en/v2), then
-read the chapter *Git Basics*. Also recommended is the article [*How to
-Write a Git Commit Message*](https://cbea.ms/git-commit/).
-
-The code is hosted on [GitHub](https://github.com/weewx/weewx). Their
-[documentation](https://docs.github.com/en/get-started) is very
-extensive and helpful.
-
-We generally follow Vincent Driessen's [branching
-model](http://nvie.com/posts/a-successful-git-branching-model/). Ignore
-the complicated diagram at the beginning of the article, and just focus
-on the text. In this model, there are two key branches:
-
-- 'master'. Fixes go into this branch. We tend to use fewer
-  *hot fix* branches and, instead, just incorporate any fixes
-  directly into the branch. Releases are tagged relative to this
-  branch.
-
-- 'development' (called `develop` in Vince's article).
-  This is where new features go. Before a release, they will be merged
-  into the `master` branch.
-
-What this means to you is that if you submit a pull request that
-includes a new feature, make sure you commit your changes relative to
-the *development* branch. If it is just a bug fix, it should be
-committed against the `master` branch.
-
-### Forking the repository
-
-The WeeWX GitHub repository is configured to use
-[GitHub Actions](https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions)
-to run Continuous Integration (CI) workflows automatically if certain
-`git` operations are done on branches under active development.
-
-This means that CI workflows will also be run on any forks that you may have
-made if the configured `git` action is done. This can be confusing if you get
-an email from GitHub if these tasks fail for some reason on your fork.
-
-To control GitHub Actions for your fork, see the recommended solutions in this
-[GitHub discussion](https://github.com/orgs/community/discussions/26704#discussioncomment-3252979)
-on this topic.
-
-## Tools
-
-### Python
-
-[JetBrain's PyCharm](http://www.jetbrains.com/pycharm/) is exellent,
-and now there's a free Community Edition. It has many advanced
-features, yet is structured that you need not be exposed to them until
-you need them. Highly recommended.
-
-### HTML and Javascript
-
-For Javascript, [JetBrain's
-WebStorm](http://www.jetbrains.com/webstorm/) is excellent, particularly
-if you will be using a framework such as Node.js or Express.js.
 
 ## Daily summaries {#daily-summaries}
 
@@ -517,7 +312,7 @@ This is what the table columns mean:
   </tr>
   <tr>
     <td class="first_col code">dateTime</td>
-    <td>The time of the start of day in <a href="https://en.wikipedia.org/wiki/Unix_time">unix epoch time</a>. This is the <em>primary key</em> in the database. It must be unique, and it cannot be null.</td>
+    <td>The time of the start of day in <a href="https://en.wikipedia.org/wiki/Unix_time">Unix epoch time</a>. This is the <em>primary key</em> in the database. It must be unique, and it cannot be null.</td>
   </tr>
   <tr>
     <td class="first_col code">min</td>
@@ -525,7 +320,7 @@ This is what the table columns mean:
   </tr>
   <tr>
     <td class="first_col code">mintime</td>
-    <td>The time in unix epoch time of the minimum temperature.</td>
+    <td>The time in Unix epoch time of the minimum temperature.</td>
   </tr>
   <tr>
     <td class="first_col code">max</td>
@@ -533,7 +328,7 @@ This is what the table columns mean:
   </tr>
   <tr>
     <td class="first_col code">maxtime</td>
-    <td>The time in unix epoch time of the maximum temperature.</td>
+    <td>The time in Unix epoch time of the maximum temperature.</td>
   </tr>
   <tr>
     <td class="first_col code">sum</td>
@@ -566,7 +361,7 @@ Now consider an extensive variable such as `rain`. The total
 rainfall for the day will be given by the field `sum`. So,
 calculating the total rainfall for the year can be done by scanning and
 summing only 365 records, instead of potentially tens, or even hundreds,
-of thousands of records. This results in a dramatic speed up for report
+of thousands of records. This results in a dramatic speed-up for report
 generation, particularly on slower machines such as the Raspberry Pi,
 working off an SD card.
 
@@ -616,6 +411,279 @@ Note that the RMS wind speed can be calculated as
 ```
 math.sqrt(wsquaresum / sumtime)
 ```
+
+## Internationalization
+
+Generally, WeeWX is locale aware. It will emit reports using the local
+formatting conventions for date, times, and values.
+
+## Exceptions
+
+In general, your code should not simply swallow an exception. For
+example, this is bad form:
+
+```
+    try:
+        os.rename(oldname, newname)
+    except:
+        pass
+```
+
+While the odds are that if an exception happens it will be because the
+file `oldname` does not exist, that is not guaranteed. It could
+be because of a keyboard interrupt, or a corrupted file system, or
+something else. Instead, you should test explicitly for any expected
+exception, and let the rest go by:
+
+```
+    try:
+        os.rename(oldname, newname)
+    except OSError:
+        pass
+```
+
+WeeWX has a few specialized exception types, used to rationalize all
+the different types of exceptions that could be thrown by the underlying
+libraries. In particular, low-level I/O code can raise a myriad of
+exceptions, such as USB errors, serial errors, network connectivity
+errors, *etc.* All device drivers should catch these exceptions and
+convert them into an exception of type `WeeWxIOError` or one of
+its subclasses.
+
+## Naming conventions
+
+How you name variables makes a big difference in code readability. In
+general, long names are preferable to short names. Instead of this,
+
+```
+p = 990.1
+```
+
+use this,
+
+```
+pressure = 990.1
+```
+
+or, even better, this:
+
+```
+pressure_mbar = 990.1
+```
+
+WeeWX uses a number of conventions to signal the variable type, although
+they are not used consistently.
+
+<table class="no_indent">
+  <caption>Variable suffix conventions</caption>
+  <tr class="first_row">
+    <td>Suffix</td>
+    <td>Example</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td class="code">_ts</td>
+    <td class="code">first_ts</td>
+    <td>Variable is a timestamp in <a href="https://en.wikipedia.org/wiki/Unix_time">Unix epoch time</a>.</td>
+  </tr>
+  <tr>
+    <td class="code">_dt</td>
+    <td class="code">start_dt</td>
+    <td>Variable is an instance of <a href="https://docs.python.org/3/library/datetime.html#datetime-objects"><span class="code">datetime.datetime</span></a>, usually in <em>local time</em>.</td>
+  </tr>
+  <tr>
+    <td class="code">_d</td>
+    <td class="code">end_d</td>
+    <td>Variable is an instance of <a href="https://docs.python.org/3/library/datetime.html#date-objects"><span class="code">datetime.date</span></a>, usually in <em>local time</em>.</td>
+  </tr>
+  <tr>
+    <td class="code">_tt</td>
+    <td class="code">sod_tt</td>
+    <td>Variable is an instance of <span class="code">time.struct_time</span> (a <a href="https://docs.python.org/3/library/time.html#time.struct_time"><em>time tuple</em>)</a>, usually in <em>local time</em>.</td>
+  </tr>
+  <tr>
+    <td class="code">_vh</td>
+    <td class="code">pressure_vh</td>
+    <td>Variable is an instance of <span class="code">weewx.units.ValueHelper</span>.</td>
+  </tr>
+  <tr>
+    <td class="code">_vt</td>
+    <td class="code">speed_vt</td>
+    <td>Variable is an instance of <span class="code">weewx.units.ValueTuple</span>.</td>
+  </tr>
+</table>
+
+## Code style
+
+Generally, we try to follow the [PEP 8 style
+guide](https://www.python.org/dev/peps/pep-0008/), but there are *many*
+exceptions. In particular, many older WeeWX function names use
+camelCase, but PEP 8 calls for snake_case. Please use snake_case for new
+code.
+
+Most modern code editors, such as Eclipse, or PyCharm, have the ability
+to automatically format code. Resist the temptation and *don't use this
+feature!* Two reasons:
+
+- Unless all developers use the same tool, using the same settings, we
+  will just thrash back and forth between slightly different versions.
+
+- Automatic formatters play a useful role, but some of what they do
+  are really trivial changes, such as removing spaces in otherwise
+  blank lines. Now if someone is trying to figure out what real,
+  syntactic, changes you have made, s/he will have to wade through all
+  those extraneous *changed lines,* trying to find the important
+  stuff.
+
+If you are working with a file where the formatting is so ragged that
+you really must do a reformat, then do it as a separate commit. This
+allows the formatting changes to be clearly distinguished from more
+functional changes.
+
+When invoking functions or instantiating classes, use the fully
+qualified name. Don't do this:
+
+```
+from datetime import datetime
+now = datetime()
+```
+
+Instead, do this:
+
+```
+import datetime
+now = datetime.datetime()
+```
+
+
+## Unit tests
+
+The code that exercises the code is located in a directory called `tests` in
+each of the component directories.
+
+Prerequisites for running the core tests include:
+
+    MySQL >= 8.0
+    Python >= 3.7
+    configobj>=5.0
+    cryptography
+    CT3>=3.1
+    ephem>=4.1
+    Pillow>=5.2
+    PyMySQL
+    pyserial>=3.4
+    pytest
+    pyusb>=1.0.2
+
+When using a pip virtual environment, these can easily be installed into the
+environment by using the file `dev_requirements.txt` located in the repository:
+
+    pip install -r dev_requirements.txt
+
+MySQL must be set up with specific users with specific permissions.  This can be
+done by a `make` target:
+
+    make test-setup
+
+To run all unit tests (do not run this as root!):
+```
+make test
+```
+
+To clean up after running tests:
+```
+make test-clean
+```
+
+If you add additional unit tests, they should put any transient files in
+`/var/tmp/weewx_test` &mdash; do not write to the source tree.
+
+
+## Git work flow
+
+We use Git as the source control system. If Git is still mysterious to
+you, bookmark this: [*Pro Git*](https://git-scm.com/book/en/v2), then
+read the chapter *Git Basics*. Also recommended is the article [*How to
+Write a Git Commit Message*](https://cbea.ms/git-commit/).
+
+The code is hosted on [GitHub](https://github.com/weewx/weewx). Their
+[documentation](https://docs.github.com/en/get-started) is very
+extensive and helpful.
+
+We generally follow Vincent Driessen's [branching
+model](http://nvie.com/posts/a-successful-git-branching-model/). Ignore
+the complicated diagram at the beginning of the article and focus
+on the text. In this model, there are two key branches:
+
+- `master`. Fixes go into this branch. We tend to use fewer
+  *hot fix* branches and, instead, just incorporate any fixes
+  directly into the branch. Releases are tagged relative to this
+  branch.
+
+- `development` (called `develop` in Vince's article).
+  This is where new features go. Before a release, they will be merged
+  into the `master` branch.
+
+What this means to you is that if you submit a pull request that
+includes a new feature, make sure you commit your changes relative to
+the *development* branch. If it is just a bug fix, it should be
+committed against the `master` branch.
+
+### Forking the repository
+
+The WeeWX GitHub repository is configured to use
+[GitHub Actions](https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions)
+to run Continuous Integration (CI) workflows automatically if certain
+`git` operations are done on branches under active development.
+
+This means that CI workflows will also be run on any forks that you may have
+made if the configured `git` action is done. This can be confusing if you get
+an email from GitHub if these tasks fail for some reason on your fork.
+
+To control GitHub Actions for your fork, see the recommended solutions in this
+[GitHub discussion](https://github.com/orgs/community/discussions/26704#discussioncomment-3252979)
+on this topic.
+
+## Tools
+
+### Python
+
+[JetBrain's PyCharm](http://www.jetbrains.com/pycharm/) is excellent,
+and now there's a free Community Edition. It has many advanced
+features, yet is structured that you need not be exposed to them until
+you need them. Highly recommended.
+
+### HTML and Javascript
+
+For JavaScript, [JetBrain's
+WebStorm](http://www.jetbrains.com/webstorm/) is excellent, particularly
+if you are using a framework such as Node.js or Express.js.
+
+## Directory Structure
+- `src/weewx/`: The core WeeWX engine and services.
+- `src/weewx/drivers/`: Drivers for various weather station hardware.
+- `src/weecfg/`: Utilities for working with `configobj` configuration files.
+- `src/weeutil/`: General-purpose utility modules used across the project.
+- `src/weedb/`: Database abstraction layer.
+- `src/weeplot/`: Plotting and image generation code.
+- `docs_src/`: Source documentation in Markdown or other formats.
+
+## Testing Framework
+- **Pytest**: The project uses `pytest` as its primary testing framework.
+
+### Test Location
+- Tests are located in `tests/` subdirectories within each package:
+  - `src/weewx/tests/`
+  - `src/weeutil/tests/`
+  - `src/weecfg/tests/`
+  - `src/weewx/drivers/tests/`
+
+### Testing Approach
+- **Unit Tests**: Most tests are unit tests targeting specific modules (e.g., `test_accum.py`, `test_units.py`).
+- **Data Driven**: Tests often use generated fake data (e.g., `gen_fake_data.py`) to simulate weather station records.
+- **Execution**: Tests can be run using `pytest` or via the `makefile` (e.g., `make test`).
+- **Regression**: The codebase includes regression tests to ensure bug fixes remain effective over time.
+
 
 ## Glossary
 
@@ -686,7 +754,7 @@ SQLite would be
   <tr>
     <td class="text_highlight">epoch time</td>
     <td>
-Sometimes referred to as &quot;unix time,&quot; or &quot;unix epoch time.&quot;
+Sometimes referred to as &quot;Unix time,&quot; or &quot;Unix epoch time.&quot;
 The number of seconds since the epoch, which is 1 Jan 1970 00:00:00 UTC. Hence,
 it always represents UTC (well... after adding a few leap seconds... but, close
 enough). This is the time used in the databases and appears as type
@@ -740,7 +808,7 @@ A complete set of units used together. Either <span class="code">US</span>,
   <tr>
     <td class="text_highlight">time stamp</td>
     <td>
-A variable in unix epoch time. Always in UTC. Variables carrying a time stamp
+A variable in Unix epoch time. Always in UTC. Variables carrying a time stamp
 usually have a suffix <span class="code">_ts</span>.
     </td>
   </tr>

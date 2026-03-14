@@ -1,5 +1,5 @@
 #
-#    Copyright (c) 2009-2024 Tom Keffer <tkeffer@gmail.com>
+#    Copyright (c) 2009-2026 Tom Keffer <tkeffer@gmail.com>
 #
 #    See the file LICENSE.txt for your full rights.
 #
@@ -280,13 +280,9 @@ class Manager:
             # Old style schema:
             table_schema = schema
 
-        # List comprehension of the types, joined together with commas. Put the SQL type in
-        # backquotes, because at least one of them ('interval') is a MySQL reserved word
-        sqltypestr = ', '.join(["`%s` %s" % _type for _type in table_schema])
-
         try:
             with weedb.Transaction(self.connection) as cursor:
-                cursor.execute("CREATE TABLE %s (%s);" % (self.table_name, sqltypestr))
+                cursor.create_table(self.table_name, table_schema)
         except weedb.DatabaseError as e:
             log.error("Unable to create table '%s' in database '%s': %s",
                       self.table_name, self.database_name, e)
@@ -363,7 +359,7 @@ class Manager:
                   progress_fn=None,
                   log_success=True,
                   log_failure=True,
-                  update = False):
+                  update=False):
         """
         Commit a single record or a collection of records to the archive.
 
@@ -373,12 +369,12 @@ class Manager:
                 SQL types and the values are the values to be stored in the database.
             accumulator (weewx.accum.Accum): An optional accumulator. If given, the record
                 will be added to the accumulator.
-            update (bool): Update database if timestamp is already present
             progress_fn (function): This function will be called every 1000 insertions. It should
                 have the signature fn(time, N) where time is the unix epoch time, and N is the
                 insertion count.
             log_success (bool): Set to True to have successful insertions logged.
             log_failure (bool): Set to True to have unsuccessful insertions logged
+            update (bool): Update database if timestamp is already present
 
         Returns:
             int: The number of successful insertions.
@@ -417,8 +413,10 @@ class Manager:
 
         # Update the cached timestamps. This has to sit outside the transaction context,
         # in case an exception occurs.
-        self.first_timestamp = min_ts if self.first_timestamp is None else min(min_ts, self.first_timestamp)
-        self.last_timestamp = max_ts if self.last_timestamp is None else max(max_ts, self.last_timestamp)
+        self.first_timestamp = min_ts if self.first_timestamp is None else min(min_ts,
+                                                                               self.first_timestamp)
+        self.last_timestamp = max_ts if self.last_timestamp is None else max(max_ts,
+                                                                             self.last_timestamp)
 
         return N
 
@@ -443,9 +441,8 @@ class Manager:
         # Get the values in the same order:
         value_list = [record[k] for k in key_list]
 
-        # This will a string of sql types, separated by commas. Because some weewx sql keys
-        # (notably 'interval') are reserved words in MySQL, put them in backquotes.
-        k_str = ','.join(["`%s`" % k for k in key_list])
+        # This will a string of sql types, separated by commas.
+        k_str = ','.join(["%s" % k for k in key_list])
         # This will be a string with the correct number of placeholder
         # question marks:
         q_str = ','.join('?' * len(key_list))
@@ -461,9 +458,10 @@ class Manager:
         except weedb.IntegrityError:
             if not update:
                 raise
-            set_stmt = ', '.join(["`%s`=?" % k for k in key_list])
-            where_stmt = ' AND '.join(["`%s` <=> ?" % k for k in key_list])
-            sql_update_stmt = "UPDATE %s SET %s WHERE dateTime = ? AND NOT (%s)" % (self.table_name, set_stmt, where_stmt)
+            set_stmt = ', '.join(["%s=?" % k for k in key_list])
+            where_stmt = ' AND '.join(["%s <=> ?" % k for k in key_list])
+            sql_update_stmt = "UPDATE %s SET %s WHERE dateTime = ? AND NOT (%s)" \
+                              % (self.table_name, set_stmt, where_stmt)
             cursor.execute(sql_update_stmt, value_list + [record['dateTime'],] + value_list)
             if log_success:
                 if cursor.rowcount > 0:
@@ -577,7 +575,7 @@ class Manager:
             new_value (float | str): The updated value
         """
 
-        self.connection.execute("UPDATE %s SET `%s`=? WHERE dateTime=?" %
+        self.connection.execute("UPDATE %s SET %s=? WHERE dateTime=?" %
                                 (self.table_name, obs_type), (new_value, timestamp))
 
     def getSql(self, sql, sqlargs=(), cursor=None):
@@ -642,8 +640,7 @@ class Manager:
 
     def _add_column(self, column_name, column_type, cursor):
         """Add a column to the main archive table"""
-        cursor.execute("ALTER TABLE %s ADD COLUMN `%s` %s"
-                       % (self.table_name, column_name, column_type))
+        cursor.add_column(self.table_name, column_name, column_type)
 
     def rename_column(self, old_column_name, new_column_name):
         """Rename an existing column
@@ -657,8 +654,7 @@ class Manager:
 
     def _rename_column(self, old_column_name, new_column_name, cursor):
         """Rename a column in the main archive table."""
-        cursor.execute("ALTER TABLE %s RENAME COLUMN %s TO %s"
-                       % (self.table_name, old_column_name, new_column_name))
+        cursor.rename_column(self.table_name, old_column_name, new_column_name)
 
     def drop_columns(self, column_names):
         """Drop a list of columns from the database
@@ -1046,9 +1042,8 @@ class DaySummaryManager(Manager):
     }
 
     # SQL statements used by the metadata in the daily summaries.
-    meta_create_str = "CREATE TABLE %s_day__metadata (name CHAR(20) NOT NULL " \
-                      "PRIMARY KEY, value TEXT);"
-    meta_replace_str = "REPLACE INTO %s_day__metadata VALUES(?, ?)"
+    meta_delete_str = "DELETE FROM %s_day__metadata WHERE name = ?;"
+    meta_insert_str = "INSERT INTO %s_day__metadata VALUES(?, ?)"
     meta_select_str = "SELECT value FROM %s_day__metadata WHERE name=?"
 
     def __init__(self, connection, table_name='archive', schema=None):
@@ -1136,7 +1131,9 @@ class DaySummaryManager(Manager):
                 self._initialize_day_table(obs[0], obs[1].lower(), cursor)
 
             # Now create the meta table...
-            cursor.execute(DaySummaryManager.meta_create_str % self.table_name)
+            cursor.create_table(f'{self.table_name}_day__metadata',
+                                [('name', 'CHAR(20) NOT NULL PRIMARY KEY'),
+                                ('value', 'TEXT')])
             # ... then put the version number in it:
             self._write_metadata('Version', DaySummaryManager.version, cursor)
 
@@ -1151,32 +1148,27 @@ class DaySummaryManager(Manager):
             day_schema_type (str): The schema to be used. Either 'scalar', or 'vector'
             cursor (weedb.Cursor): An open cursor
         """
-        s = ', '.join(
-            ["%s %s" % column_type
-             for column_type in DaySummaryManager.day_schemas[day_schema_type]])
-
-        sql_create_str = "CREATE TABLE %s_day_%s (%s);" % (self.table_name, obs_type, s)
-        cursor.execute(sql_create_str)
+        cursor.create_table(f"{self.table_name}_day_{obs_type}", DaySummaryManager.day_schemas[day_schema_type])
 
     def _add_column(self, column_name, column_type, cursor):
         # First call my superclass's version...
-        Manager._add_column(self, column_name, column_type, cursor)
+        super()._add_column(column_name, column_type, cursor)
         # ... then do mine
         self._initialize_day_table(column_name, 'scalar', cursor)
 
     def _rename_column(self, old_column_name, new_column_name, cursor):
         # First call my superclass's version...
-        Manager._rename_column(self, old_column_name, new_column_name, cursor)
+        super()._rename_column(old_column_name, new_column_name, cursor)
         # ... then do mine
-        cursor.execute("ALTER TABLE %s_day_%s RENAME TO %s_day_%s;"
-                       % (self.table_name, old_column_name, self.table_name, new_column_name))
+        cursor.rename_table(f"{self.table_name}_day_{old_column_name}",
+                            f"{self.table_name}_day_{new_column_name}")
 
     def _drop_columns(self, column_names, cursor):
         # First call my superclass's version...
-        Manager._drop_columns(self, column_names, cursor)
+        super()._drop_columns(column_names, cursor)
         # ... then do mine
         for column_name in column_names:
-            cursor.execute("DROP TABLE IF EXISTS %s_day_%s;" % (self.table_name, column_name))
+            cursor.drop_table(f"{self.table_name}_day_{column_name}")
 
     def _addSingleRecord(self, record, cursor, log_success=True, log_failure=True, update=False):
         """Specialized version that updates the daily summaries, as well as the main archive
@@ -1222,7 +1214,7 @@ class DaySummaryManager(Manager):
         self._set_day_summary(_stats_dict, accumulator.timespan.stop, cursor)
 
     def backfill_day_summary(self, start_d=None, stop_d=None,
-                             progress_fn=show_progress, trans_days=5):
+                             progress_fn=show_progress, trans_days=5, key_set=None):
 
         """Fill the daily summaries from an archive database.
 
@@ -1245,6 +1237,8 @@ class DaySummaryManager(Manager):
                 every 1000 records.
             trans_days (int): Number of days of archive data to be used for each daily summaries
                 database transaction. [Optional. Default is 5.]
+            key_set (set|None): If not None, only the observation types in this set
+                will be calculated.
 
         Returns:
              tuple[int,int]: A 2-way tuple (nrecs, ndays) where
@@ -1298,7 +1292,7 @@ class DaySummaryManager(Manager):
                 first_d = datetime.date.fromtimestamp(last_daily_ts)
             else:
                 # Daily summaries exist, and they are complete.
-                if not start_d and not stop_d:
+                if not key_set and not start_d and not stop_d:
                     # The daily summaries are complete, yet the user has not specified anything.
                     # Guess we're done.
                     log.info("Daily summaries up to date")
@@ -1348,7 +1342,7 @@ class DaySummaryManager(Manager):
                     except weewx.accum.OutOfSpan:
                         # The record is out of the time span.
                         # Save the old accumulator:
-                        self._set_day_summary(day_accum, None, cursor)
+                        self._set_day_summary(day_accum, None, cursor, key_set=key_set)
                         ndays += 1
                         # Get a new accumulator:
                         timespan = weeutil.weeutil.archiveDaySpan(rec['dateTime'])
@@ -1367,7 +1361,7 @@ class DaySummaryManager(Manager):
                 # We're done with this transaction. Unless it is empty, save the daily summary for
                 # the last day
                 if day_accum and not day_accum.isEmpty:
-                    self._set_day_summary(day_accum, None, cursor)
+                    self._set_day_summary(day_accum, None, cursor, key_set=key_set)
                     ndays += 1
                 # Patch lastUpdate:
                 if last_daily_ts:
@@ -1610,7 +1604,7 @@ class DaySummaryManager(Manager):
             if not cursor:
                 _cursor.close()
 
-    def _set_day_summary(self, day_accum, lastUpdate, cursor):
+    def _set_day_summary(self, day_accum, lastUpdate, cursor, key_set=None):
         """Write all statistics for a day to the database in a single transaction.
 
         Args:
@@ -1619,6 +1613,7 @@ class DaySummaryManager(Manager):
                 None. Normally, this is the timestamp of the last archive record added to the
                 instance day_accum.
             cursor (Cursor): An open cursor.
+            key_set (set|None): If not None, only the observation types in this set will be written.
             """
 
         # Make sure the new data uses the same unit system as the database.
@@ -1628,19 +1623,24 @@ class DaySummaryManager(Manager):
 
         # For each daily summary type...
         for _summary_type in day_accum:
-            # Don't try an update for types not in the database:
+            # Don't update types not in the database:
             if _summary_type not in self.daykeys:
+                continue
+            # If requested, only update the specified keys:
+            if key_set and _summary_type not in key_set:
                 continue
             # ... get the stats tuple to be written to the database...
             _write_tuple = (_sod,) + day_accum[_summary_type].getStatsTuple()
             # ... and an appropriate SQL command with the correct number of question marks ...
             _qmarks = ','.join(len(_write_tuple) * '?')
-            _sql_replace_str = "REPLACE INTO %s_day_%s VALUES(%s)" % (
-                self.table_name, _summary_type, _qmarks)
+            _sql_insert_str = ("INSERT INTO %s_day_%s VALUES(%s)"
+                               % (self.table_name, _summary_type, _qmarks))
             # ... and write to the database. In case the type doesn't appear in the database,
             # be prepared to catch an exception:
             try:
-                cursor.execute(_sql_replace_str, _write_tuple)
+                cursor.execute("DELETE FROM %s_day_%s WHERE dateTime = ?"
+                               % (self.table_name, _summary_type), (_sod,))
+                cursor.execute(_sql_insert_str, _write_tuple)
             except weedb.OperationalError as e:
                 log.error("Replace failed for database %s: %s", self.database_name, e)
 
@@ -1687,8 +1687,8 @@ class DaySummaryManager(Manager):
         _cursor = cursor or self.connection.cursor()
 
         try:
-            _cursor.execute(DaySummaryManager.meta_replace_str % self.table_name,
-                            (key, value))
+            _cursor.execute(DaySummaryManager.meta_delete_str % self.table_name, (key,))
+            _cursor.execute(DaySummaryManager.meta_insert_str % self.table_name, (key, value))
         finally:
             if cursor is None:
                 _cursor.close()

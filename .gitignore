@@ -1,6 +1,9 @@
 *~
 \#*
 
+# Don't commit sensitive stuff
+.env
+
 # Python compile stuff
 __pycache__
 *.pyc
@@ -13,10 +16,8 @@ __pycache__
 # Ignore the macOS turds
 .DS_Store
 
-# Ignore any misplaced virtual environments
-.venv
-venv
-dev_vend
+# Ignore any virtual environments
+.venv*
 
 # Exclude all of the JetBrains .idea directory
 .idea

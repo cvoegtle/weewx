@@ -8,14 +8,14 @@
 # System imports:
 import datetime
 import ftplib
-import glob
 import locale
 import logging
-import os.path
+import os
 import threading
 import time
 import traceback
 from contextlib import contextmanager
+from pathlib import Path
 
 # 3rd party imports
 import configobj
@@ -71,7 +71,7 @@ MAPS = ((), (), (), MONTH_NAME_MAP, DAY_NAME_MAP)
 @contextmanager
 def set_cwd(new_cwd):
     """Set the current working directory within a context manager"""
-    old_cwd = os.getcwd()
+    old_cwd = Path.cwd()
     try:
         os.chdir(new_cwd)
         yield new_cwd
@@ -89,12 +89,15 @@ def set_locale(name):
     with LOCALE_LOCK:
         # Save the old locale
         saved_locale = locale.setlocale(locale.LC_ALL)
-        # Set a new one. If the locale is invalid, use a default.
+        # Set a new one. Be prepared for an exception if the locale is invalid.
         try:
             yield locale.setlocale(locale.LC_ALL, name)
         except locale.Error as e:
-            log.debug("Unable to set locale '%s': %s. Using default.", name, e)
-            yield locale.setlocale(locale.LC_ALL, '')
+            # That didn't work. Set to the default locale.
+            loc = locale.setlocale(locale.LC_ALL, '')
+            log.debug("Unable to set locale '%s': %s. Using default locale instead ('%s').",
+                      name, e, loc)
+            yield loc
         finally:
             locale.setlocale(locale.LC_ALL, saved_locale)
 
@@ -210,15 +213,16 @@ class StdReportEngine(threading.Thread):
                                   "running report anyway", report)
                         log.debug("       ****  %s", timing.validation_error)
 
+            skin_dir = Path(self.config_dict['WEEWX_ROOT'],
+                            skin_dict['SKIN_ROOT'],
+                            skin_dict['skin'])
+
             # We are using two "with" statements below:
             # 1. Set the current working directory to the skin's location. This allows #include
             # statements to work.
             # 2. Set the locale to 'lang'. If 'lang' was not specified, set it to the user's
             # default locale.
-            with set_cwd(os.path.join(self.config_dict['WEEWX_ROOT'],
-                                      skin_dict['SKIN_ROOT'],
-                                      skin_dict['skin'])) as cwd, \
-                    set_locale(skin_dict.get('lang', '')) as loc:
+            with set_cwd(skin_dir) as cwd, set_locale(skin_dict.get('lang', '')) as loc:
                 log.debug("Running generators for report '%s' in directory '%s' with locale '%s'",
                           report, cwd, loc)
 
@@ -289,17 +293,16 @@ def build_skin_dict(config_dict, report):
     #######################################################################
     # Now add the options in the report's skin.conf file.
     # Start by figuring out where it is located.
-    skin_config_path = os.path.join(
-        config_dict['WEEWX_ROOT'],
-        config_dict['StdReport']['SKIN_ROOT'],
-        config_dict['StdReport'][report].get('skin', ''),
-        'skin.conf')
+    skin_config_path = Path(config_dict['WEEWX_ROOT'],
+                            config_dict['StdReport']['SKIN_ROOT'],
+                            config_dict['StdReport'][report].get('skin', ''),
+                            'skin.conf')
 
     # Retrieve the configuration dictionary for the skin. Wrap it in a try block in case we
     # fail.  It is ok if there is no file - everything for a skin might be defined in the weewx
     # configuration.
     try:
-        merge_dict = configobj.ConfigObj(skin_config_path,
+        merge_dict = configobj.ConfigObj(str(skin_config_path),
                                          encoding='utf-8',
                                          interpolation=False,
                                          file_error=True)
@@ -370,13 +373,14 @@ def merge_unit_system(report_units_base, skin_dict):
     skin_dict['Units']['Groups'].update(units_dict)
 
 
-def get_lang_dict(lang_spec, config_dict, report):
-    """Given a language specification, return its corresponding locale dictionary.
+def get_lang_dict(lang_spec, lang_spec_dir, report):
+    """Given a language specification, and a directory with language files, return the
+     corresponding locale dictionary.
 
     Args:
         lang_spec (str|None): Language specification string.
             Can be of the form 'en', 'en_AU', or 'en_AU.utf8.
-        config_dict (dict): Configuration dictionary.
+        lang_spec_dir (Path): Path to the directory containing language spec files.
         report (str): The name of the report for which the locale dicationary will be returned.
     Returns:
         dict: The locale dictionary as a ConfigObj
@@ -385,36 +389,36 @@ def get_lang_dict(lang_spec, config_dict, report):
     """
     # The results will be merged into this empty dictionary:
     lang_dict = configobj.ConfigObj({}, encoding='utf-8', interpolation=False)
-    if not lang_spec:
-        # If no language spec has been specified, return the empty dictionary
+
+    # Make sure we have a valid directory. If not, return the default.
+    if not lang_spec or not lang_spec_dir.is_dir():
+        # If no language spec has been specified, or, if this is not a valid language directory,
+        # return the empty dictionary
         return lang_dict
 
-    # Strip off any possible coding. For example, 'en_AU.utf8' will result in 'en_AU'.
+    # We allow specs such as 'en_AU'. First look for 'en.conf', then
+    # 'en_AU.conf'. The latter adds any specialized Australian spellings.
+    # First strip off any coding. For example, 'en_AU.utf8' becomes 'en_AU'.
     lang_country = lang_spec.split('.')[0]
-    # Split the language from the country
+    # Then split the language from the country
     codes = lang_country.split('_')
     if len(codes) == 1:
-        # Just a language spec
+        # Just a language spec. This results in something like ['en'].
         code_list = [codes[0]]
     else:
-        # A language spec and a country code
+        # A language spec and a country code. This results in ['en', 'en_AU'].
         code_list = [codes[0], lang_country]
 
+    # now read them in order.
     for code in code_list:
-        # The language's corresponding text file will be found in subdirectory 'lang', with
-        # a suffix '.conf'. Find the path to it:.
-        lang_config_path = os.path.join(
-            config_dict['WEEWX_ROOT'],
-            config_dict['StdReport']['SKIN_ROOT'],
-            config_dict['StdReport'][report].get('skin', ''),
-            'lang',
-            code + '.conf')
+        # Path to the file
+        lang_config_path = lang_spec_dir / (code + '.conf')
 
-        # Retrieve the language dictionary for the skin and requested language. Wrap it in a
+        # Retrieve the language dictionary for the requested language. Wrap it in a
         # try block in case we fail.  It is ok if there is no file - everything for a skin
         # might be defined in the weewx configuration.
         try:
-            merge_dict = configobj.ConfigObj(lang_config_path,
+            merge_dict = configobj.ConfigObj(str(lang_config_path),
                                              encoding='utf-8',
                                              interpolation=False,
                                              file_error=True)
@@ -433,11 +437,24 @@ def get_lang_dict(lang_spec, config_dict, report):
 
         lang_dict.merge(merge_dict)
 
+    # We allow additional specs to be added by extensions. They sit in subdirectories below this one.
+    # Recursively search for them:
+    for entry in lang_spec_dir.iterdir():
+        if entry.is_dir() and entry.name.startswith('lang'):
+            # Found a directory with a name that starts with 'lang'. This is a language extension.
+            lang_dict.merge(get_lang_dict(lang_spec, entry, report))
+
     return lang_dict
 
 
 def merge_lang(lang_spec, config_dict, report, skin_dict):
-    lang_dict = get_lang_dict(lang_spec, config_dict, report)
+    # Path to the directory holding the language spec files.
+    lang_spec_dir = Path(config_dict['WEEWX_ROOT'],
+                         config_dict['StdReport']['SKIN_ROOT'],
+                         config_dict['StdReport'][report].get('skin', ''),
+                         'lang')
+    # Search it for the given language spec.
+    lang_dict = get_lang_dict(lang_spec, lang_spec_dir, report)
     # There may or may not be a unit system specified. If so, honor it.
     if 'unit_system' in lang_dict:
         merge_unit_system(lang_dict['unit_system'], skin_dict)
@@ -489,10 +506,9 @@ class FtpGenerator(ReportGenerator):
 
         t1 = time.time()
         try:
-            local_root = os.path.join(self.config_dict['WEEWX_ROOT'],
-                                      self.skin_dict.get('HTML_ROOT',
-                                                         self.config_dict['StdReport'][
-                                                             'HTML_ROOT']))
+            local_root = Path(self.config_dict['WEEWX_ROOT'],
+                              self.skin_dict.get('HTML_ROOT',
+                                                 self.config_dict['StdReport']['HTML_ROOT']))
             ftp_data = weeutil.ftpupload.FtpUpload(
                 server=self.skin_dict['server'],
                 user=self.skin_dict['user'],
@@ -548,10 +564,9 @@ class RsyncGenerator(ReportGenerator):
         # We don't try to collect performance statistics about rsync, because
         # rsync will report them for us.  Check the debug log messages.
         try:
-            local_root = os.path.join(self.config_dict['WEEWX_ROOT'],
-                                      self.skin_dict.get('HTML_ROOT',
-                                                         self.config_dict['StdReport'][
-                                                             'HTML_ROOT']))
+            local_root = Path(self.config_dict['WEEWX_ROOT'],
+                              self.skin_dict.get('HTML_ROOT',
+                                                 self.config_dict['StdReport']['HTML_ROOT']))
             rsync_data = weeutil.rsyncupload.RsyncUpload(
                 local_root=local_root,
                 remote_root=self.skin_dict['path'],
@@ -609,18 +624,17 @@ class CopyGenerator(ReportGenerator):
             pass
 
         # Figure out the destination of the files
-        html_dest_dir = os.path.join(self.config_dict['WEEWX_ROOT'],
-                                     self.skin_dict['HTML_ROOT'])
+        html_dest_dir = Path(self.config_dict['WEEWX_ROOT'], self.skin_dict['HTML_ROOT'])
 
         # The copy list can contain wildcard characters. Go through the
         # list globbing any character expansions
         ncopy = 0
         for pattern in copy_list:
             # Glob this pattern; then go through each resultant path:
-            for path in glob.glob(pattern):
+            for path in Path().glob(pattern):
                 ncopy += weeutil.weeutil.deep_copy_path(path, html_dest_dir)
-        if log_success:
-            log.info("Copied %d files to %s", ncopy, html_dest_dir)
+        if log_success and ncopy:
+            log.debug("Copied %d files to %s", ncopy, html_dest_dir)
 
 
 # ===============================================================================

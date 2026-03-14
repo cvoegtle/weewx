@@ -1,5 +1,5 @@
 #
-#    Copyright (c) 2019-2024 Tom Keffer <tkeffer@gmail.com>
+#    Copyright (c) 2019-2025 Tom Keffer <tkeffer@gmail.com>
 #
 #    See the file LICENSE.txt for your full rights.
 #
@@ -231,7 +231,7 @@ class ArchiveTable(XType):
         else:
 
             # No aggregation
-            sql_str = "SELECT dateTime, %s, usUnits, `interval` FROM %s " \
+            sql_str = "SELECT dateTime, %s, usUnits, interval FROM %s " \
                       "WHERE dateTime > ? AND dateTime <= ?" % (obs_type, db_manager.table_name)
 
             std_unit_system = None
@@ -304,13 +304,13 @@ class ArchiveTable(XType):
         # Aggregations 'vecdir' and 'vecavg' require built-in math functions,
         # which were introduced in sqlite v3.35.0, 12-Mar-2021. If they don't exist, then
         # weewx will raise an exception of type "weedb.OperationalError".
-        'vecdir': "SELECT SUM(`interval` * windSpeed * COS(RADIANS(90 - windDir))), "
-                  "       SUM(`interval` * windSpeed * SIN(RADIANS(90 - windDir))) "
+        'vecdir': "SELECT SUM(interval * windSpeed * COS(RADIANS(90 - windDir))), "
+                  "       SUM(interval * windSpeed * SIN(RADIANS(90 - windDir))) "
                   "FROM %(table_name)s "
                   "WHERE dateTime > %(start)s AND dateTime <= %(stop)s ",
-        'vecavg': "SELECT SUM(`interval` * windSpeed * COS(RADIANS(90 - windDir))), "
-                  "       SUM(`interval` * windSpeed * SIN(RADIANS(90 - windDir))), "
-                  "       SUM(`interval`) "
+        'vecavg': "SELECT SUM(interval * windSpeed * COS(RADIANS(90 - windDir))), "
+                  "       SUM(interval * windSpeed * SIN(RADIANS(90 - windDir))), "
+                  "       SUM(interval) "
                   "FROM %(table_name)s "
                   "WHERE dateTime > %(start)s AND dateTime <= %(stop)s "
                   "AND windSpeed is not null"
@@ -420,7 +420,7 @@ class ArchiveTable(XType):
         if obs_type != 'wind':
             raise weewx.UnknownType(obs_type)
 
-        sql_stmt = "SELECT `interval`, windSpeed, windDir " \
+        sql_stmt = "SELECT interval, windSpeed, windDir " \
                    "FROM %(table_name)s " \
                    "WHERE dateTime > %(start)s AND dateTime <= %(stop)s;" \
                    % {
@@ -466,9 +466,9 @@ class DailySummaries(XType):
     agg_sql_dict = {
         'avg': "SELECT SUM(wsum),SUM(sumtime) FROM %(table_name)s_day_%(obs_key)s "
                "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
-        'avg_ge': "SELECT SUM((wsum/sumtime) >= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'avg_ge': "SELECT SUM(CASE WHEN (wsum/sumtime) >= %(val)s THEN 1 ELSE 0 END) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s and sumtime <> 0",
-        'avg_le': "SELECT SUM((wsum/sumtime) <= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'avg_le': "SELECT SUM(CASE WHEN (wsum/sumtime) <= %(val)s THEN 1 ELSE 0 END) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s and sumtime <> 0",
         'count': "SELECT SUM(count) FROM %(table_name)s_day_%(obs_key)s "
                  "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
@@ -477,9 +477,9 @@ class DailySummaries(XType):
                    "ORDER BY max DESC, maxtime ASC LIMIT 1",
         'max': "SELECT MAX(max) FROM %(table_name)s_day_%(obs_key)s "
                "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
-        'max_ge': "SELECT SUM(max >= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'max_ge': "SELECT SUM(CASE WHEN max >= %(val)s THEN 1 ELSE 0 END) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
-        'max_le': "SELECT SUM(max <= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'max_le': "SELECT SUM(CASE WHEN max <= %(val)s THEN 1 ELSE 0 END) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
         'maxmin': "SELECT MAX(min) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
@@ -502,9 +502,9 @@ class DailySummaries(XType):
                    "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
         'min': "SELECT MIN(min) FROM %(table_name)s_day_%(obs_key)s "
                "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
-        'min_ge': "SELECT SUM(min >= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'min_ge': "SELECT SUM(CASE WHEN min >= %(val)s THEN 1 ELSE 0 END) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
-        'min_le': "SELECT SUM(min <= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'min_le': "SELECT SUM(CASE WHEN min <= %(val)s THEN 1 ELSE 0 END) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
         'minmax': "SELECT MIN(max) FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
@@ -527,9 +527,11 @@ class DailySummaries(XType):
                "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
         'sum': "SELECT SUM(sum) FROM %(table_name)s_day_%(obs_key)s "
                "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
-        'sum_ge': "SELECT SUM(sum >= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'sum_ge': "SELECT SUM(CASE WHEN sum >= %(val)s THEN 1 ELSE 0 END) "
+                  "FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
-        'sum_le': "SELECT SUM(sum <= %(val)s) FROM %(table_name)s_day_%(obs_key)s "
+        'sum_le': "SELECT SUM(CASE WHEN sum <= %(val)s THEN 1 ELSE 0 END) "
+                  "FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
         'vecavg': "SELECT SUM(xsum),SUM(ysum),SUM(sumtime)  FROM %(table_name)s_day_%(obs_key)s "
                   "WHERE dateTime >= %(start)s AND dateTime < %(stop)s",
@@ -659,24 +661,6 @@ class DailySummaries(XType):
                  "FROM %(day_table)s "
                  "WHERE dateTime>=%(start)s AND dateTime<%(stop)s %(group_def)s",
     }
-    # Database- and interval-specific "GROUP BY" clauses.
-    group_defs = {
-        'sqlite': {
-            'day': "GROUP BY CAST("
-                   "    (julianday(dateTime,'unixepoch','localtime') - 0.5 "
-                   "       - CAST(julianday(%(sod)s, 'unixepoch','localtime') AS int)) "
-                   "     / %(agg_days)s "
-                   "AS int)",
-            'month': "GROUP BY strftime('%%Y-%%m',dateTime,'unixepoch','localtime') ",
-            'year': "GROUP BY strftime('%%Y',dateTime,'unixepoch','localtime') ",
-        },
-        'mysql': {
-            'day': "GROUP BY TRUNCATE((TO_DAYS(FROM_UNIXTIME(dateTime)) "
-                   "- TO_DAYS(FROM_UNIXTIME(%(sod)s)))/ %(agg_days)s, 0) ",
-            'month': "GROUP BY DATE_FORMAT(FROM_UNIXTIME(dateTime), '%%%%Y-%%%%m') ",
-            'year': "GROUP BY DATE_FORMAT(FROM_UNIXTIME(dateTime), '%%%%Y') ",
-        },
-    }
 
     @staticmethod
     def get_series(obs_type, timespan, db_manager, aggregate_type=None, aggregate_interval=None,
@@ -704,7 +688,6 @@ class DailySummaries(XType):
             raise weewx.UnknownAggregation(aggregate_interval)
 
         # We're good. Proceed.
-        dbtype = db_manager.connection.dbtype
         interp_dict = {
             'agg_days': aggregate_interval / 86400,
             'day_table': "%s_day_%s" % (db_manager.table_name, obs_type),
@@ -720,7 +703,7 @@ class DailySummaries(XType):
         else:
             group_by_group = 'day'
         # Add the database-specific GROUP_BY clause to the interpolation dictionary
-        interp_dict['group_def'] = DailySummaries.group_defs[dbtype][group_by_group] % interp_dict
+        interp_dict['group_def'] = db_manager.connection.get_group_by(group_by_group) % interp_dict
         # This is the final SELECT statement.
         sql_stmt = DailySummaries.common[aggregate_type] % interp_dict
 
@@ -1043,7 +1026,7 @@ class WindVec(XType):
         else:
             # No aggregation desired. However, we have will have to assemble the wind vector from
             # its flattened types. This SQL select string will select the proper wind types
-            sql_str = 'SELECT dateTime, %s, %s, usUnits, `interval` FROM %s ' \
+            sql_str = 'SELECT dateTime, %s, %s, usUnits, interval FROM %s ' \
                       'WHERE dateTime >= ? AND dateTime <= ?' \
                       % (WindVec.windvec_types[obs_type][0], WindVec.windvec_types[obs_type][1],
                          db_manager.table_name)

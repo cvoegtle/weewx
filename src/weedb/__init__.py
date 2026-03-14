@@ -201,8 +201,39 @@ class Connection:
 
 
 class Cursor:
-    pass
 
+    def execute(self, sql_string, sql_tuple=()):
+        raise NotImplementedError
+
+    def create_table(self, table_name, table_schema):
+        """Create a table with the given name and columns.
+        table_name (str): The name of the table to be created.
+        table_schema (List[Tuple]): List of tuples, each tuple containing 
+            the column name and type.
+        """
+        # List comprehension of the types, joined together with commas.
+        sqltypestr = ', '.join(["%s %s" % _type for _type in table_schema])
+        self.execute(f"CREATE TABLE {table_name} ({sqltypestr});")
+
+    def drop_table(self, table_name):
+        """Drop an existing table."""
+        self.execute(f"DROP TABLE IF EXISTS {table_name}")
+
+    def add_column(self, table_name, column_name, column_type):
+        """Add a single new column to an existing table."""
+        self.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+
+    def rename_column(self, table_name, old_column_name, new_column_name):
+        """Rename a column in the main archive table."""
+        self.execute(f"ALTER TABLE {table_name} RENAME COLUMN {old_column_name} TO {new_column_name}")
+
+    def drop_columns(self, table, column_names):
+        """Drop one or more columns from an existing table."""
+        raise NotImplementedError
+
+    def rename_table(self, old_table_name, new_table_name):
+        """Rename an existing table."""
+        self.execute(f"ALTER TABLE {old_table_name} RENAME TO {new_table_name}")
 
 class Transaction:
     """Class to be used to wrap transactions in a 'with' clause."""

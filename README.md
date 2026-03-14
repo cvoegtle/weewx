@@ -97,9 +97,16 @@ For current and previous releases:
 
 [https://weewx.com/downloads](https://weewx.com/downloads)
 
-For the latest source code:
+## Code
+
+The code lives in a git repository:
 
 [https://github.com/weewx/weewx](https://github.com/weewx/weewx)
+
+See [Notes for WeeWX developers](https://weewx.com/docs/latest/devnotes/) to 
+learn about how to contribute to WeeWX. See the file 
+[PACKAGING.txt](PACKAGING.txt) for details about the process of creating a 
+release.
 
 ## Documentation and Support
 

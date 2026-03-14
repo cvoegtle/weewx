@@ -6,6 +6,7 @@
 """weedb driver for the MySQL database"""
 
 import decimal
+import re
 
 try:
     # Typically supplied by the "mysqlclient" package.
@@ -208,6 +209,19 @@ class Connection(weedb.Connection):
             # or None, if the variable does not exist.
             return row
 
+    group_defs = {
+        'day': "GROUP BY TRUNCATE((TO_DAYS(FROM_UNIXTIME(dateTime)) "
+               "- TO_DAYS(FROM_UNIXTIME(%(sod)s)))/ %(agg_days)s, 0) ",
+        'month': "GROUP BY DATE_FORMAT(FROM_UNIXTIME(dateTime), '%%%%Y-%%%%m') ",
+        'year': "GROUP BY DATE_FORMAT(FROM_UNIXTIME(dateTime), '%%%%Y') ",
+    }
+
+    @staticmethod
+    def get_group_by(group_name):
+        """Return a GROUP BY clause suitable for MySQL."""
+        # Fail hard if we're given a bad group name:
+        return Connection.group_defs[group_name]
+
     @guard
     def begin(self):
         """Begin a transaction."""
@@ -245,11 +259,13 @@ class Cursor(weedb.Cursor):
 
         # MySQL uses '%s' as placeholders, so replace the ?'s with %s
         mysql_string = sql_string.replace('?', '%s')
+        # If it hasn't been done already, put backquotes around the reserved word 'interval'
+        updated_sql = re.sub(r"(?<!`)\b(interval)\b(?!`)", r"`\1`", mysql_string)
 
         # Convert sql_tuple to a plain old tuple, just in case it actually
         # derives from tuple, but overrides the string conversion (as is the
         # case with a TimeSpan object):
-        self.cursor.execute(mysql_string, tuple(sql_tuple))
+        self.cursor.execute(updated_sql, tuple(sql_tuple))
 
         return self
 

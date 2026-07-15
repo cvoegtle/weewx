@@ -27,7 +27,7 @@ description = """%(prog)s is the master utility used by WeeWX. It can invoke sev
 subcommands, listed below. You can explore what each subcommand does by using the --help option.
 For example, to find out what the 'database' subcommand can do, use '%(prog)s database --help'."""
 
-SUBCOMMANDS = ['database', 'debug', 'device', 'extension', 'import', 'report', 'station', ]
+SUBCOMMANDS = ['database', 'debug', 'device', 'extension', 'import', 'report', 'rest', 'station', ]
 
 
 # ===============================================================================
@@ -62,6 +62,9 @@ def main():
 
     # Parse what we can. This gives us access to the namespace.
     namespace, extra_args = parser.parse_known_args()
+    # Guard against there being no subcommand at all. In this case, display the help message.
+    if namespace.subcommand is None:
+        namespace = parser.parse_args(['-h'])
     # Now take a look at the signature of the dispatch function and see how many arguments it has.
     sig = inspect.signature(namespace.func)
     if len(sig.parameters) == 1:

@@ -120,6 +120,8 @@ def read_config(option_path, args=None, locations=DEFAULT_LOCATIONS,
         where the configuration file was found.
         - If it is a relative path, then it is converted to an absolute path by
         prepending the directory where the configuration file was found.
+        - Either case, it is guaranteed that WEEWX_ROOT will be in the resultant
+        configuration dictionary and that it will be an absolute path.
 
     This version also adds two possible entries to the returned ConfigObj:
         config_path: Location of the actual configuration file that was used.

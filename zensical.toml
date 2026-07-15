@@ -1,5 +1,5 @@
 [project]
-site_name = "WeeWX 5.3"
+site_name = 'WeeWX 5.4'
 site_url = "https://www.weewx.com"
 site_author = "Tom Keffer <tkeffer@gmail.com>"
 repo_url = "https://github.com/weewx/weewx"
@@ -11,53 +11,6 @@ site_dir = "build/docs"
 extra_css = ["css/weewx_docs.css"]
 extra = { analytics = { provider = "google", property = "G-D146BWZK54" }, generator = false }
 plugins = ["search"]
-
-[project.theme]
-name = "zensical"
-variant = "classic"
-logo = "images/logo-weewx.png"
-favicon = "images/favicon.png"
-features = [
-    "navigation.instant",
-    "navigation.tracking",
-    "navigation.indexes",
-    "navigation.top",
-    "toc.follow",
-    "search.highlight",
-    "search.share",
-    "search.suggest",
-    "content.tabs.link",
-]
-font = { text = "Noto Sans", code = "Inconsolata Mono" }
-palette = [
-    { scheme = "default", primary = "teal", accent = "white", toggle = { icon = "material/toggle-switch-off-outline", name = "Switch to dark mode" } },
-]
-
-[project.theme.icon]
-repo = "fontawesome/brands/github"
-
-[markdown]
-[markdown.extensions.pymdownx]
-highlight = {}
-inlinehilite = {}
-details = {}
-magiclink = {}
-mark = {}
-tilde = {}
-superfences = { custom_fences = [
-    { name = "mermaid", class = "mermaid", format = "python/name:pymdownx.superfences.fence_code_format" },
-] }
-tabbed = { alternate_style = true }
-snippets = { auto_append = ["docs/abbreviations.md"] }
-
-[markdown.extensions]
-abbr = {}
-admonition = {}
-attr_list = {}
-footnotes = {}
-md_in_html = {}
-tables = {}
-toc = { permalink = true }
 
 nav = [
     { Overview = "index.md" },
@@ -120,6 +73,7 @@ nav = [
             { Troubleshooting = "utilities/weectl-import-troubleshoot.md" },
         ] },
         { "weectl report" = "utilities/weectl-report.md" },
+        { "weectl rest" = "utilities/weectl-rest.md" },
         { "weectl station" = "utilities/weectl-station.md" },
     ] },
     { "Hardware guide" = [
@@ -137,7 +91,6 @@ nav = [
         { WS23xx = "hardware/ws23xx.md" },
         { WS28xx = "hardware/ws28xx.md" },
     ] },
-    { "Upgrade guide" = "upgrade.md" },
     { Reference = [
         { "Application options" = [
             { Introduction = "reference/weewx-options/introduction.md" },
@@ -174,6 +127,59 @@ nav = [
         { ValueTuple = "reference/valuetuple.md" },
         { ValueHelper = "reference/valuehelper.md" },
     ] },
+    { "Upgrade guide" = "upgrade.md" },
     { "Notes for developers" = "devnotes.md" },
     { "Change log" = "changes.md" },
 ]
+
+# Do not report things like `[StdReport]` as a missing link!
+[project.validation]
+unresolved_references = false
+
+[project.theme]
+name = "zensical"
+variant = "classic"
+logo = "images/logo-weewx.png"
+favicon = "images/favicon.png"
+features = [
+    "navigation.instant",
+    "navigation.tracking",
+    "navigation.indexes",
+    "navigation.top",
+    "toc.follow",
+    "search.highlight",
+    "search.share",
+    "search.suggest",
+    "content.tabs.link",
+]
+font = { text = "Noto Sans", code = "Inconsolata Mono" }
+palette = [
+    { scheme = "default", primary = "teal", accent = "white", toggle = { icon = "material/toggle-switch-off-outline", name = "Switch to dark mode" } },
+]
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+[markdown]
+[markdown.extensions.pymdownx]
+highlight = {}
+inlinehilite = {}
+details = {}
+magiclink = {}
+mark = {}
+tilde = {}
+superfences = { custom_fences = [
+    { name = "mermaid", class = "mermaid", format = "python/name:pymdownx.superfences.fence_code_format" },
+] }
+tabbed = { alternate_style = true }
+snippets = { auto_append = ["docs/abbreviations.md"] }
+
+[markdown.extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+footnotes = {}
+md_in_html = {}
+tables = {}
+toc = { permalink = true }
+

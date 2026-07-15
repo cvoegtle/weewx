@@ -450,6 +450,35 @@ class TestExtensionInstall:
         # It should be the same as our original:
         assert test_dict == self.config_dict
 
+    @pytest.mark.skipif(sys.platform == 'win32',
+                        reason="st_ino and rename-over-open-file semantics are POSIX")
+    def test_reinstall_replaces_files_atomically(self):
+        """Installing over an existing extension must replace each file by
+        renaming a new file into place, never by overwriting it in place: a
+        running weewxd may hold the old file open or memory-mapped (a mapped
+        file, such as a .bsp ephemeris, kills the process with SIGBUS when
+        truncated underneath it)."""
+        self.engine.install_extension('./pmon.tgz', no_confirm=True)
+        installed_path = os.path.join(self.engine.root_dict['USER_DIR'], 'pmon.py')
+        with open(installed_path, 'rb') as held:
+            original = held.read()
+            ino_before = os.fstat(held.fileno()).st_ino
+            # Install again while the file is held open, as a running
+            # weewxd would hold it:
+            self.engine.install_extension('./pmon.tgz', no_confirm=True)
+            # The held file must be untouched -- same inode, full content...
+            assert os.fstat(held.fileno()).st_ino == ino_before
+            held.seek(0)
+            assert held.read() == original
+        # ... while the destination path is a new file, swapped in whole:
+        assert os.stat(installed_path).st_ino != ino_before
+        with open(installed_path, 'rb') as f:
+            assert f.read() == original
+        # No temporary files were left behind:
+        leftovers = [f for f in os.listdir(os.path.dirname(installed_path))
+                     if '.tmp' in f]
+        assert leftovers == []
+
 
 # ############# Utilities #################
 

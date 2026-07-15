@@ -33,19 +33,6 @@ function setup(widgets) {
     }
 }
 
-/**
- * Initialize as soon as the DOM is ready (does not wait for slow images/iframes).
- * This allows the graphics on the top to display immediately.
- */
-(function initWhenDomReady() {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => setup(), {once: true});
-    } else {
-        setup();
-    }
-})();
-
-
 function choose_history(id) {
     choose_div('history', id, ['day', 'week', 'month', 'year']);
     choose_col('hilo', id, ['week', 'month', 'year', 'rainyear']);
@@ -157,7 +144,7 @@ function get_cookie(name, default_value) {
     if (i < 0) return default_value;
     let j = cookie.indexOf(";", i + 1);
     if (j < 0) j = cookie.length;
-    return unescape(cookie.substring(i + name.length + 2, j));
+    return decodeURI(cookie.substring(i + name.length + 2, j));
 }
 
 function get_parameter(name) {

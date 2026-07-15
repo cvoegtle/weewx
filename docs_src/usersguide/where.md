@@ -59,9 +59,10 @@ documentation.
     | Documentation           |                  | https://weewx.com/docs    |
 
 !!! Note
-    In the locations above, relative paths are *relative to _`WEEWX_ROOT`_*.
-    Absolute paths begin with a forward slash (`/`).  The tilde character
-    (`~`) represents the `HOME` directory of the user.
+    In the locations above, the tilde character (`~`) represents the `HOME` 
+    directory of the user. Absolute paths begin with either a tilde or a forward
+    slash (`/`), relative paths do not. Relative paths are *relative 
+    to _`WEEWX_ROOT`_*.
 
 
 ## Location of log files
@@ -71,7 +72,7 @@ facility.  On some systems, the log messages end up in files that you can
 browse as you would any other file.  On other systems you will have to use
 tools provided by the operating system to see the log messages.
 
-See the section [_Monitoring WeeWX_](monitoring.md/#log-messages).
+See the section [_Monitoring WeeWX_](monitoring).
 
 
 ## Location of executables in a pip install

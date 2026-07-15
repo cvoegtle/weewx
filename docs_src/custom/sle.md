@@ -1,6 +1,8 @@
 # Writing search list extensions
 
-The intention of this document is to help you write new Search List
+The [Cheetah generator](./cheetah-generator/) makes extensive use of *Search
+Lists*. They are the means by which tags, such as `$day.outTemp.max`, are
+evaluated. The intention of this document is to help you write new Search List
 Extensions (SLE). Here's the plan:
 
 * We start by explaining how SLEs work.
@@ -779,7 +781,7 @@ class Colorize(SearchList):                                               # 1
 7.  Convert the incoming value, so it uses the same units as the color
     table.
 
-8.  We must always be vigilant for values of Python None! The expression
+8.  We must always be vigilant for values of Python `None`! The expression
 
     ``` python
     self.color_tables[unit_group].get('none') or self.color_tables[unit_group].get('None', "#00000000")

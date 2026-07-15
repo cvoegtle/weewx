@@ -37,9 +37,9 @@ class StationInfo:
             except KeyError as e:
                 raise weewx.ViolatedPrecondition("Value 'altitude' needs a unit (%s)" % e)
 
-        if console and hasattr(console, 'hardware_name'):
+        try:
             self.hardware = console.hardware_name
-        else:
+        except (AttributeError, NotImplementedError):
             self.hardware = stn_dict.get('station_type', 'Unknown')
 
         if console and hasattr(console, 'rain_year_start'):
@@ -118,13 +118,13 @@ def _os_uptime():
     strategies may have to be tried:"""
 
     try:
-        # For Python 3.7 and later, most systems
-        return time.clock_gettime(time.CLOCK_UPTIME)
+        # For Python 3.7 and later, Linux 2.6.39 or greater. No MacOS.
+        return time.clock_gettime(time.CLOCK_BOOTTIME)
     except AttributeError:
         pass
 
     try:
-        # For Python 3.3 and later, most systems
+        # For most Linux and MacOS, Python 3.3 and later
         return time.clock_gettime(time.CLOCK_MONOTONIC)
     except AttributeError:
         pass

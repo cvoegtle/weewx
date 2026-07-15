@@ -27,7 +27,7 @@ import weeutil.weeutil
 import weewx.defaults
 import weewx.manager
 import weewx.units
-from weeutil.weeutil import to_bool, to_int
+from weeutil.weeutil import getFileName, to_bool, to_int, dict_search
 
 log = logging.getLogger(__name__)
 
@@ -194,7 +194,7 @@ class StdReportEngine(threading.Thread):
                 timing_line = skin_dict.get('report_timing')
                 if timing_line:
                     # Get a ReportTiming object.
-                    timing = ReportTiming(timing_line)
+                    timing = ReportTiming(timing_line, skin_dict, self.record['dateTime'])
                     if timing.is_valid:
                         # Get timestamp and interval, so we can check if the
                         # report timing is triggered.
@@ -506,9 +506,10 @@ class FtpGenerator(ReportGenerator):
 
         t1 = time.time()
         try:
-            local_root = Path(self.config_dict['WEEWX_ROOT'],
-                              self.skin_dict.get('HTML_ROOT',
-                                                 self.config_dict['StdReport']['HTML_ROOT']))
+            html_root = self.skin_dict.get('HTML_ROOT')
+            if not html_root:
+                html_root = self.config_dict['StdReport']['HTML_ROOT']
+            local_root = Path(self.config_dict['WEEWX_ROOT'], html_root)
             ftp_data = weeutil.ftpupload.FtpUpload(
                 server=self.skin_dict['server'],
                 user=self.skin_dict['user'],
@@ -525,7 +526,7 @@ class FtpGenerator(ReportGenerator):
                 encoding=self.skin_dict.get('ftp_encoding', 'utf-8'),
                 ciphers=self.skin_dict.get('ciphers')
             )
-        except KeyError:
+        except (KeyError, AttributeError):
             log.debug("ftpgenerator: FTP upload not requested. Skipped.")
             return
 
@@ -608,20 +609,12 @@ class CopyGenerator(ReportGenerator):
         copy_list = []
 
         if self.first_run:
-            # Get the list of files to be copied only once, at the first
-            # invocation of the generator. Wrap in a try block in case the
-            # list does not exist.
-            try:
-                copy_list += weeutil.weeutil.option_as_list(copy_dict['copy_once'])
-            except KeyError:
-                pass
+            # Get the list of files to be copied only at the first
+            # invocation of the generator.
+            copy_list += weeutil.weeutil.option_as_list(copy_dict.get('copy_once', []))
 
-        # Get the list of files to be copied everytime. Again, wrap in a
-        # try block.
-        try:
-            copy_list += weeutil.weeutil.option_as_list(copy_dict['copy_always'])
-        except KeyError:
-            pass
+        # Get the list of files to be copied everytime.
+        copy_list += weeutil.weeutil.option_as_list(copy_dict.get('copy_always', []))
 
         # Figure out the destination of the files
         html_dest_dir = Path(self.config_dict['WEEWX_ROOT'], self.skin_dict['HTML_ROOT'])
@@ -630,6 +623,9 @@ class CopyGenerator(ReportGenerator):
         # list globbing any character expansions
         ncopy = 0
         for pattern in copy_list:
+            # Guard against an empty pattern
+            if not pattern:
+                continue
             # Glob this pattern; then go through each resultant path:
             for path in Path().glob(pattern):
                 ncopy += weeutil.weeutil.deep_copy_path(path, html_dest_dir)
@@ -668,6 +664,10 @@ class ReportTiming:
         @weekly   : Run once a week,  ie "0 0 * * 0"
         @daily    : Run once a day,   ie "0 0 * * *"
         @hourly   : Run once an hour, ie "0 * * * *"
+    - if the timing is given with @createIfMissing the report generation is
+      allowed to occur if files that the report would generate doesn't exist
+      or if the extension has been updated and the modified file times in the
+      skin directory are newer even if the report_timing would normally fail
 
     Useful ReportTiming class attributes:
 
@@ -679,7 +679,7 @@ class ReportTiming:
                       replaced with numeric equivalents.
     """
 
-    def __init__(self, raw_line):
+    def __init__(self, raw_line, skin_dict, dateTime):
         """Initialises a ReportTiming object.
 
         Processes raw line to produce 5 field line suitable for further
@@ -691,6 +691,10 @@ class ReportTiming:
         # initialise some properties
         self.is_valid = None
         self.validation_error = None
+        self.create_if_missing = False
+        self.skin_dict = skin_dict
+        self.dateTime = dateTime
+
         # To simplify error reporting keep a copy of the raw line passed to us
         # as a string. The raw line could be a list if it included any commas.
         # Assume a string but catch the error if it is a list and join the list
@@ -707,6 +711,11 @@ class ReportTiming:
                 self.validation_error = "Unsupported character '%s' in '%s'." % (unsupported_char,
                                                                                  self.raw_line)
                 return
+
+        if "@createIfMissing" in line_str:
+            self.create_if_missing = True
+            self.raw_line = line_str = line_str.replace(",@createIfMissing", "")
+
         # Six special time definition 'nicknames' are supported which replace
         # the line elements with pre-determined values. These nicknames start
         # with the @ character. Check for any of these nicknames and substitute
@@ -874,6 +883,38 @@ class ReportTiming:
                 checked for triggering. May be omitted in which case only
                 ts_hi is checked.
         """
+
+        if self.is_valid and self.create_if_missing:
+            # check for missing files
+
+            skin_dir = self.skin_dict["SKIN_ROOT"]
+            skin_dir = os.path.join(skin_dir, self.skin_dict["skin"])
+            html_dest_dir = self.skin_dict["HTML_ROOT"]
+
+            if os.path.exists(skin_dir):
+                if os.path.exists(html_dest_dir):
+                    templates = dict_search(self.skin_dict.get("CheetahGenerator", None), "template")
+                    for template in templates:
+                        if not template.endswith(".tmpl"):
+                            continue
+
+                        template_filename = os.path.join(skin_dir, template)
+                        if os.path.exists(template_filename):
+                            output_filename = os.path.join(html_dest_dir, getFileName(template, self.dateTime))
+                            if not os.path.exists(output_filename):
+                                log.debug(f"{output_filename} should exist but doesn't, allowing report generation")
+                                return True
+
+                            template_mtime = os.path.getmtime(template_filename)
+                            output_mtime = os.path.getmtime(output_filename)
+
+                            if template_mtime > output_mtime:
+                                log.debug(f"{output_filename} exists but is older than {template_filename}, allowing report generation")
+                                return True
+
+                else:
+                    log.debug(f"{html_dest_dir} should exist but doesn't, allowing report generation")
+                    return True
 
         if self.is_valid and ts_hi is not None:
             # setup ts range to iterate over

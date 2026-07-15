@@ -154,7 +154,7 @@ class ImageGenerator(weewx.reportengine.ReportGenerator):
         x_domain = weeutil.weeutil.TimeSpan(minstamp, maxstamp)
 
         # Override the x interval if the user has given an explicit interval:
-        timeinc_user = to_int(plot_options.get('x_interval'))
+        timeinc_user = to_int(weeutil.weeutil.nominal_spans(plot_options.get('x_interval')))
         if timeinc_user is not None:
             timeinc = timeinc_user
         plot.setXScaling((x_domain.start, x_domain.stop, timeinc))

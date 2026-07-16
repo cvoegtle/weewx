@@ -151,6 +151,8 @@ class StdRESTful(weewx.engine.StdService):
     def shutDown_thread(q, t):
         """Function to shut down a thread."""
         if q and t.is_alive():
+            if hasattr(t, 'shutting_down'):
+                t.shutting_down = True
             # Put a None in the queue to signal the thread to shut down
             q.put(None)
             # Wait up to 20 seconds for the thread to exit:
@@ -229,6 +231,7 @@ class RESTThread(threading.Thread):
         # Initialize my superclass:
         threading.Thread.__init__(self, name=protocol_name)
         self.daemon = True
+        self.shutting_down = False
 
         self.queue = q
         self.protocol_name = protocol_name
@@ -455,6 +458,16 @@ class RESTThread(threading.Thread):
         _request.add_header("User-Agent", "weewx/%s" % weewx.__version__)
         return _request
 
+    def sleep_and_check_shutdown(self, seconds):
+        """Sleep for the specified number of seconds, checking for shutdown regularly."""
+        _left = seconds
+        while _left > 0:
+            if getattr(self, 'shutting_down', False):
+                raise FailedPost("Upload aborted due to thread shutdown")
+            _sleep_time = min(1.0, _left)
+            time.sleep(_sleep_time)
+            _left -= _sleep_time
+
     def post_with_retries(self, request, data=None):
         """Post a request, retrying if necessary
 
@@ -467,14 +480,16 @@ class RESTThread(threading.Thread):
         """
         if self.delay_post:
             log.debug("%s: Delaying post by %d seconds", self.protocol_name, self.delay_post)
-            time.sleep(self.delay_post)
+            self.sleep_and_check_shutdown(self.delay_post)
 
         # Retry up to max_tries times:
         for _count in range(self.max_tries):
+            if getattr(self, 'shutting_down', False):
+                raise FailedPost("Upload aborted due to thread shutdown")
             try:
                 if _count:
                     # If this is not the first time through, sleep a bit before retrying
-                    time.sleep(self.retry_wait)
+                    self.sleep_and_check_shutdown(self.retry_wait)
 
                 # Do a single post. The function post_request() can be
                 # specialized by a RESTful service to catch any unusual
